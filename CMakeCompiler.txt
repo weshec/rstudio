@@ -33,6 +33,13 @@ if(APPLE)
     set(CMAKE_CXX_COMPILER /usr/bin/c++)
   endif()
 
+  # target 10.11 El Capitan as oldest supported version
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.11")
+
+  # prevent use of APIs added after 10.11
+  add_definitions(
+    -DMAC_OS_X_VERSION_MAX_ALLOWED=101100
+  )
 endif()
 
 # require C++11 (or C++14 for MSVC)
