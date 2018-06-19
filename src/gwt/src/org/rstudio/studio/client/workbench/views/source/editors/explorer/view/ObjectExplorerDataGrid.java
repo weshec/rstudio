@@ -21,6 +21,7 @@ import org.rstudio.core.client.Debug;
 import org.rstudio.core.client.JsVectorString;
 import org.rstudio.core.client.ListUtil;
 import org.rstudio.core.client.ListUtil.FilterPredicate;
+import org.rstudio.core.client.command.KeyboardShortcut;
 import org.rstudio.core.client.SafeHtmlUtil;
 import org.rstudio.core.client.StringUtil;
 import org.rstudio.core.client.dom.DomUtils;
@@ -32,6 +33,7 @@ import org.rstudio.core.client.widget.events.SelectionChangedEvent;
 import org.rstudio.core.client.widget.events.SelectionChangedHandler;
 import org.rstudio.studio.client.RStudioGinjector;
 import org.rstudio.studio.client.ResizableHeader;
+import org.rstudio.studio.client.application.Desktop;
 import org.rstudio.studio.client.application.events.EventBus;
 import org.rstudio.studio.client.server.ServerError;
 import org.rstudio.studio.client.server.ServerRequestCallback;
@@ -690,70 +692,92 @@ public class ObjectExplorerDataGrid
       setKeyboardSelectedColumn(0);
    }
    
+   private static final native boolean isRepeating(Event event)
+   /*-{
+      return event.repeat || false;
+   }-*/;
+   
    @Override
    public void onCellPreview(CellPreviewEvent<Data> preview)
    {
       Event event = Event.getCurrentEvent();
       int code = event.getKeyCode();
+      int modifier = KeyboardShortcut.getModifierValue(event);
       int type = event.getTypeInt();
       int row = getKeyboardSelectedRow();
-      boolean isDefault = false;
+      boolean eventHandled = false;
       
       if (type == Event.ONKEYDOWN || type == Event.ONKEYPRESS)
       {
-         switch (code)
+         // detect whether we've received a non-repeating keydown event
+         // this is used to screen out keyup events for which the source
+         // of the keydown was a different event target
+         if (!isRepeating(event))
+            didReceiveNonRepeatingKeyDownEvent_ = true;
+
+         if (modifier == 0)
          {
-         case KeyCodes.KEY_UP:
-            selectRowRelative(-1);
-            break;
+            switch (code)
+            {
+            case KeyCodes.KEY_UP:
+               selectRowRelative(-1);
+               eventHandled = true;
+               break;
 
-         case KeyCodes.KEY_DOWN:
-            selectRowRelative(+1);
-            break;
+            case KeyCodes.KEY_DOWN:
+               selectRowRelative(+1);
+               eventHandled = true;
+               break;
 
-         case KeyCodes.KEY_PAGEUP:
-            selectRowRelative(-10);
-            break;
+            case KeyCodes.KEY_PAGEUP:
+               selectRowRelative(-10);
+               eventHandled = true;
+               break;
 
-         case KeyCodes.KEY_PAGEDOWN:
-            selectRowRelative(+10);
-            break;
+            case KeyCodes.KEY_PAGEDOWN:
+               selectRowRelative(+10);
+               eventHandled = true;
+               break;
 
-         case KeyCodes.KEY_LEFT:
-            selectParentOrClose(row);
-            break;
+            case KeyCodes.KEY_LEFT:
+               selectParentOrClose(row);
+               eventHandled = true;
+               break;
 
-         case KeyCodes.KEY_RIGHT:
-            selectChildOrOpen(row);
-            break;
-            
-         default:
-            isDefault = true;
-            break;
+            case KeyCodes.KEY_RIGHT:
+               selectChildOrOpen(row);
+               eventHandled = true;
+               break;
+            }
+         }
+      }
+
+      else if (type == Event.ONKEYUP)
+      {
+         // on Desktop, we need to ensure that the origin of the
+         // original keydown event matches the keyup event
+         if (!Desktop.isDesktop() || didReceiveNonRepeatingKeyDownEvent_)
+         {
+            didReceiveNonRepeatingKeyDownEvent_ = false;
+
+            switch (code)
+            {
+            case KeyCodes.KEY_ENTER:
+            case KeyCodes.KEY_SPACE:
+               toggleExpansion(row);
+               eventHandled = true;
+               break;
+            }
          }
       }
       
-      else if (type == Event.ONKEYUP)
+      else if (type == Event.ONBLUR)
       {
-         switch (code)
-         {
-         case KeyCodes.KEY_ENTER:
-         case KeyCodes.KEY_SPACE:
-            toggleExpansion(row);
-            break;
-
-         default:
-            isDefault = true;
-            break;
-         }
-      }
-      else
-      {
-         isDefault = true;
+         didReceiveNonRepeatingKeyDownEvent_ = false;
       }
       
       // eat any non-default handled events
-      if (!isDefault)
+      if (eventHandled)
       {
          preview.setCanceled(true);
          event.stopPropagation();
@@ -1353,6 +1377,7 @@ public class ObjectExplorerDataGrid
    private TableRowElement hoveredRow_;
    private boolean showAttributes_;
    private String filter_;
+   private boolean didReceiveNonRepeatingKeyDownEvent_ = false;
    
    // Injected ----
    private ObjectExplorerServerOperations server_;

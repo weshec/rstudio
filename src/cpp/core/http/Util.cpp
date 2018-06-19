@@ -36,6 +36,10 @@
 #include <core/RegexUtils.hpp>
 #include <core/system/System.hpp>
 
+#ifndef _WIN32
+#include <core/http/BoostAsioSsl.hpp>
+#endif
+
 namespace rstudio {
 namespace core {
 namespace http {
@@ -467,7 +471,7 @@ void fileRequestHandler(const std::string& wwwLocalPath,
    // request for a URI not within our location scope
    if (uri.find(baseUri) != 0)
    {
-      pResponse->setNotFoundError(request.uri());
+      pResponse->setNotFoundError(request);
       return;
    }
 
@@ -481,7 +485,7 @@ void fileRequestHandler(const std::string& wwwLocalPath,
    FilePath filePath = http::util::requestedFile(wwwLocalPath, relativePath);
    if (filePath.empty())
    {
-      pResponse->setNotFoundError(request.uri());
+      pResponse->setNotFoundError(request);
       return;
    }
 
@@ -519,6 +523,34 @@ bool isNetworkAddress(const std::string& str)
    return (!ec && iter != boost::asio::ip::tcp::resolver::iterator());
 }
 
+bool isWSUpgradeRequest(const Request& request)
+{
+   // look for the Upgrade token in the Connection request header; in most cases it will be the
+   // exact value of the the header, but some browsers (Firefox) include other tokens. (RFC 6455)
+   boost::regex upgrade("\\<Upgrade\\>", boost::regex::icase);
+   std::string connection = request.headerValue("Connection");
+   return boost::regex_search(connection, upgrade);
+}
+
+#ifndef _WIN32
+bool isSslShutdownError(const boost::system::error_code& ec)
+{
+   // boost returns "short_read" when the peer calls SSL_shutdown()
+#ifdef SSL_R_SHORT_READ
+   // OpenSSL 1.0.0
+   return ec.category() == boost::asio::error::get_ssl_category() &&
+          ec.value() == ERR_PACK(ERR_LIB_SSL, 0, SSL_R_SHORT_READ);
+#else
+   // OpenSSL 1.1.0
+   return ec == boost::asio::ssl::error::stream_truncated;
+#endif
+}
+#else
+bool isSslShutdownError(const boost::system::error_code& ec)
+{
+   return false;
+}
+#endif
 
 } // namespace util
 

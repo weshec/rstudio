@@ -615,6 +615,15 @@ QString GwtCallback::getRVersion()
 {
 #ifdef Q_OS_WIN32
    bool defaulted = options().rBinDir().isEmpty();
+   if (!defaulted)
+   {
+      // If an older version has set a 32-bit R version, use default
+      RVersion rCurrentVersion(options().rBinDir());
+      if (rCurrentVersion.architecture() != ArchX64)
+      {
+         defaulted = true;
+      }
+   }
    QString rDesc = defaulted
                    ? QString::fromUtf8("[Default] ") + autoDetect().description()
                    : RVersion(options().rBinDir()).description();
@@ -1190,7 +1199,7 @@ void GwtCallback::openTerminal(QString terminalPath,
 #elif defined(Q_OS_LINUX)
 
    // start the auto-detected terminal (or user-specified override)
-   if (!terminalPath.length() == 0)
+   if (terminalPath.length() != 0)
    {
       QStringList args;
       QProcess::startDetached(terminalPath,

@@ -117,9 +117,10 @@ public class SecondaryReposWidget extends Composite
       updateRepos();
    }
 
-   public void setCranRepoUrl(String cranUrl)
+   public void setCranRepoUrl(String cranUrl, boolean cranIsCustom)
    {
       cranRepoUrl_ = cranUrl;
+      cranIsCustom_ = cranIsCustom;
    }
    
    private ClickHandler addButtonClicked_ = new ClickHandler() {
@@ -137,7 +138,7 @@ public class SecondaryReposWidget extends Composite
                repos_.add(input);
                updateRepos();
             }
-         }, excluded, cranRepoUrl_);
+         }, excluded, cranRepoUrl_, cranIsCustom_);
          
          secondaryReposDialog.showModal();
       }
@@ -165,7 +166,6 @@ public class SecondaryReposWidget extends Composite
                   }
                },
                false);
-            
          }
       }
    };
@@ -213,7 +213,9 @@ public class SecondaryReposWidget extends Composite
    private final ListBox listBox_;
    private GlobalDisplay globalDisplay_;
    private ArrayList<CRANMirror> repos_;
+   
    private String cranRepoUrl_;
+   private boolean cranIsCustom_;
 
    private SmallButton buttonAdd_;
    private SmallButton buttonRemove_;

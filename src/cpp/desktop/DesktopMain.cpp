@@ -369,7 +369,8 @@ int main(int argc, char* argv[])
          {
             std::vector<std::string> blackList = {
                "NVIDIA GeForce GT 650M",
-               "NVIDIA GeForce GT 750M"
+               "NVIDIA GeForce GT 750M",
+               "Intel Iris Graphics 6100"
             };
 
             for (const std::string& entry : blackList)
@@ -481,13 +482,6 @@ int main(int argc, char* argv[])
          sessionPath = currentPath.complete("session/rsession");
          scriptsPath = currentPath.complete("desktop");
          devMode = true;
-#ifdef _WIN32
-         if (version.architecture() == ArchX64 &&
-             installPath.complete("session/x64").exists())
-         {
-            sessionPath = installPath.complete("session/x64/rsession");
-         }
-#endif
       }
 
       // if there is no conf path then release mode
@@ -496,15 +490,6 @@ int main(int argc, char* argv[])
          // default paths (then tweak)
          sessionPath = installPath.complete("bin/rsession");
          scriptsPath = installPath.complete("bin");
-
-         // check for win64 binary on windows
-#ifdef _WIN32
-         if (version.architecture() == ArchX64 &&
-             installPath.complete("bin/x64").exists())
-         {
-            sessionPath = installPath.complete("bin/x64/rsession");
-         }
-#endif
 
          // check for running in a bundle on OSX
 #ifdef __APPLE__

@@ -1,7 +1,7 @@
 /*
  * SessionMain.cpp
  *
- * Copyright (C) 2009-17 by RStudio, Inc.
+ * Copyright (C) 2009-18 by RStudio, Inc.
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -133,6 +133,7 @@
 #include "modules/SessionPath.hpp"
 #include "modules/SessionPackages.hpp"
 #include "modules/SessionPackrat.hpp"
+#include "modules/SessionPlumberViewer.hpp"
 #include "modules/SessionProfiler.hpp"
 #include "modules/SessionRAddins.hpp"
 #include "modules/SessionRCompletions.hpp"
@@ -143,6 +144,7 @@
 #include "modules/SessionSpelling.hpp"
 #include "modules/SessionSource.hpp"
 #include "modules/SessionTests.hpp"
+#include "modules/SessionThemes.hpp"
 #include "modules/SessionUpdates.hpp"
 #include "modules/SessionVCS.hpp"
 #include "modules/SessionHistory.hpp"
@@ -155,6 +157,7 @@
 #include "modules/environment/SessionEnvironment.hpp"
 #include "modules/jobs/SessionJobs.hpp"
 #include "modules/overlay/SessionOverlay.hpp"
+#include "modules/plumber/SessionPlumber.hpp"
 #include "modules/presentation/SessionPresentation.hpp"
 #include "modules/preview/SessionPreview.hpp"
 #include "modules/rmarkdown/RMarkdownTemplates.hpp"
@@ -486,6 +489,7 @@ Error rInit(const rstudio::r::session::RInitInfo& rInitInfo)
       (modules::rmarkdown::templates::initialize)
       (modules::rpubs::initialize)
       (modules::shiny::initialize)
+      (modules::plumber::initialize)
       (modules::source::initialize)
       (modules::source_control::initialize)
       (modules::authoring::initialize)
@@ -498,6 +502,7 @@ Error rInit(const rstudio::r::session::RInitInfo& rInitInfo)
       (modules::updates::initialize)
       (modules::about::initialize)
       (modules::shiny_viewer::initialize)
+      (modules::plumber_viewer::initialize)
       (modules::rsconnect::initialize)
       (modules::packrat::initialize)
       (modules::rhooks::initialize)
@@ -516,6 +521,7 @@ Error rInit(const rstudio::r::session::RInitInfo& rInitInfo)
       (modules::reticulate::initialize)
       (modules::tests::initialize)
       (modules::jobs::initialize)
+      (modules::themes::initialize)
 
       // workers
       (workers::web_request::initialize)
@@ -1761,7 +1767,13 @@ int main (int argc, char * const argv[])
       error = workingDir.makeCurrentPath();
       if (error)
          return sessionExitFailure(error, ERROR_LOCATION);
-         
+
+      // override the active session's working directory
+      // it is created with the default value of ~, so if our session options
+      // have specified that a different directory should be used, we should
+      // persist the value to the session state as soon as possible
+      module_context::activeSession().setWorkingDir(workingDir.absolutePath());
+
       // start http connection listener
       error = waitWithTimeout(
             http_methods::startHttpConnectionListenerWithTimeout, 0, 100, 1);
@@ -1816,13 +1828,53 @@ int main (int argc, char * const argv[])
       rOptions.rSourcePath = options.coreRSourcePath();
       if (!desktopMode) // ignore r-libs-user in desktop mode
          rOptions.rLibsUser = options.rLibsUser();
-      // CRAN repos: repos file trumps global server option which trumps user setting
-      if (!options.rCRANMultipleRepos().empty())
-         rOptions.rCRANRepos = options.rCRANMultipleRepos();
-      else if (!options.rCRANRepos().empty())
-         rOptions.rCRANRepos = options.rCRANRepos();
-      else
-         rOptions.rCRANRepos = userSettings().cranMirror().url;
+
+      bool customRepo = true;
+
+      // When edit disabled, clear CRAN user setting preferences
+      if (!options.allowCRANReposEdit()) {
+        CRANMirror userMirror = userSettings().cranMirror();
+        userMirror.changed = false;
+        userSettings().setCRANMirror(userMirror, false);
+      }
+
+      // CRAN repos precedence: user setting then repos file then global server option
+      if (userSettings().cranMirror().changed) {
+         rOptions.rCRANUrl = userSettings().cranMirror().url;
+         rOptions.rCRANSecondary = userSettings().cranMirror().secondary;
+      }
+      else if (!options.rCRANMultipleRepos().empty()) {
+         std::vector<std::string> parts;
+         std::string repos = options.rCRANMultipleRepos();
+         boost::split(parts, repos, boost::is_any_of("|"));
+         rOptions.rCRANSecondary = "";
+
+         std::vector<std::string> secondary;
+         for (size_t idxParts = 0; idxParts < parts.size() - 1; idxParts += 2) {
+            if (string_utils::toLower(parts[idxParts]) == "cran")
+               rOptions.rCRANUrl = parts[idxParts + 1];
+            else
+               secondary.push_back(std::string(parts[idxParts]) + "|" + parts[idxParts + 1]);
+         }
+         rOptions.rCRANSecondary = algorithm::join(secondary, "|");
+      }
+      else if (!options.rCRANUrl().empty())
+         rOptions.rCRANUrl = options.rCRANUrl();
+      else {
+         rOptions.rCRANUrl = "https://cran.rstudio.com/";
+         customRepo = false;
+      }
+
+      if (!userSettings().cranMirror().changed) {
+         CRANMirror defaultMirror;
+         defaultMirror.name = customRepo ? "Custom" : "Global (CDN)";
+         defaultMirror.host = customRepo ? "Custom" : "RStudio";
+         defaultMirror.secondary = rOptions.rCRANSecondary;
+         defaultMirror.url = rOptions.rCRANUrl;
+
+         userSettings().setCRANMirror(defaultMirror, false);
+      }
+
       rOptions.useInternet2 = userSettings().useInternet2();
       rOptions.rCompatibleGraphicsEngineVersion =
                               options.rCompatibleGraphicsEngineVersion();

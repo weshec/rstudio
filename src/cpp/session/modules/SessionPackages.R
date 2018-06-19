@@ -55,6 +55,10 @@ if (identical(as.character(Sys.info()["sysname"]), "Darwin") &&
    notifyPackageLoaded <- function(pkgname, ...)
    {
       .Call("rs_packageLoaded", pkgname)
+
+      # when a package is loaded, it can register S3 methods which replace overrides we've
+      # attached manually; take this opportunity to reattach them.
+      .rs.reattachS3Overrides()
    }
 
    notifyPackageUnloaded <- function(pkgname, ...)
@@ -1226,25 +1230,39 @@ if (identical(as.character(Sys.info()["sysname"]), "Darwin") &&
    repos
 })
 
-.rs.addFunction("getSecondaryRepos", function(cran = getOption("repos")[[1]]) {
-   result <- list()
+.rs.addFunction("getSecondaryRepos", function(cran = getOption("repos")[[1]], custom = TRUE) {
+   result <- list(
+      repos = list()
+   )
    
    rCranReposUrl <- .Call("rs_getCranReposUrl")
-   if (identical(rCranReposUrl, NULL) || nchar(.Call("rs_getCranReposUrl")) == 0) {
+   isDefault <- identical(rCranReposUrl, NULL) || nchar(rCranReposUrl) == 0
+
+   if (isDefault) {
       slash <- if (.rs.lastCharacterIs(cran, "/")) "" else "/"
       rCranReposUrl <- paste(slash, "../../__api__/repos", sep = "")
+   }
+   else {
+      custom <- TRUE
    }
 
    if (.rs.startsWith(rCranReposUrl, "..") ||
        .rs.startsWith(rCranReposUrl, "/..")) {
-      rCranReposUrl <- paste(cran, rCranReposUrl, sep = "")
+      rCranReposUrl <- .rs.completeUrl(cran, rCranReposUrl)
    }
 
-   if (nchar(rCranReposUrl) > 0) {
+   if (custom) {
       conf <- tempfile(fileext = ".conf")
       
       result <- tryCatch({
-         download.file(rCranReposUrl, conf, method = "curl", extra = "-H 'Accept: text/ini'")
+         download.file(
+            rCranReposUrl,
+            conf,
+            method = "curl",
+            extra = "-H 'Accept: text/ini'",
+            quiet = TRUE
+         )
+         
          result$repos <- .rs.parseSecondaryReposIni(conf)
          if (length(result$repos) == 0) {
             result$repos <- .rs.parseSecondaryReposJson(conf)
@@ -1266,6 +1284,27 @@ if (identical(as.character(Sys.info()["sysname"]), "Darwin") &&
    result
 })
 
-.rs.addJsonRpcHandler("get_secondary_repos", function(cran) {
-   .rs.getSecondaryRepos(cran)
+.rs.addJsonRpcHandler("get_secondary_repos", function(cran, custom) {
+   .rs.getSecondaryRepos(cran, custom)
+})
+
+.rs.addFunction("appendSlashIfNeeded", function(url) {
+   slash <- if (.rs.lastCharacterIs(url, "/")) "" else "/"
+   paste(url, slash, sep = "")
+})
+
+.rs.addJsonRpcHandler("validate_cran_repo", function(url) {
+   packagesFile <- tempfile(fileext = ".gz")
+   
+   tryCatch({
+      download.file(
+         .rs.completeUrl(.rs.appendSlashIfNeeded(url), "src/contrib/PACKAGES.gz"),
+         packagesFile,
+         quiet = TRUE
+      )
+
+      .rs.scalar(TRUE)
+   }, error = function(e) {
+      .rs.scalar(FALSE)
+   })
 })

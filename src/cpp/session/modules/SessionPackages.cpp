@@ -218,7 +218,7 @@ void reconcileSecureDownloadConfiguration()
       // (in this case the global repository is always overriding the user
       // provided repository so it only makes sense to check/verify the
       // global repository)
-      std::string globalRepos = session::options().rCRANRepos();
+      std::string globalRepos = session::options().rCRANUrl();
       if (!globalRepos.empty() && !isSecure(globalRepos))
       {
          insecureReposURLWarning(globalRepos,

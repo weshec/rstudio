@@ -20,8 +20,9 @@
 #include <iostream>
 #include <vector>
 
-#include <boost/foreach.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/foreach.hpp>
+#include <boost/range/as_array.hpp>
 
 #include <signal.h>
 #include <fcntl.h>
@@ -61,6 +62,7 @@
 
 #include <core/RegexUtils.hpp>
 #include <core/Algorithm.hpp>
+#include <core/DateTime.hpp>
 #include <core/Error.hpp>
 #include <core/Log.hpp>
 #include <core/FilePath.hpp>
@@ -75,6 +77,7 @@
 
 #include <core/system/ProcessArgs.hpp>
 #include <core/system/Environment.hpp>
+#include <core/system/FileScanner.hpp>
 #include <core/system/PosixUser.hpp>
 #include <core/system/PosixGroup.hpp>
 #include <core/system/Process.hpp>
@@ -541,7 +544,7 @@ Error closeFileDescriptorsFrom(int fdStart)
 }
 #else
 // read the file descriptors from a virtual directory listing,
-// iteratore over them and close - much faster than the above method
+// iterate over them and close - much faster than the above method
 Error closeFileDescriptorsFrom(int fdStart)
 {
    std::vector<unsigned int> fds;
@@ -564,40 +567,46 @@ Error closeFileDescriptorsFrom(int fdStart)
 
 } // anonymous namespace
 
-Error getOpenFds(std::vector<unsigned int>* pFds)
+Error getOpenFds(std::vector<uint32_t>* pFds)
 {
    return getOpenFds(getpid(), pFds);
 }
 
 #ifndef __APPLE__
-Error getOpenFds(pid_t pid, std::vector<unsigned int>* pFds)
+Error getOpenFds(pid_t pid, std::vector<uint32_t>* pFds)
 {
    std::string pidStr = safe_convert::numberToString(pid);
    boost::format fmt("/proc/%1%/fd");
-   FilePath fdDir = FilePath(boost::str(fmt % pidStr));
+   FilePath filePath(boost::str(fmt % pidStr));
 
-   std::vector<FilePath> children;
-   Error error = fdDir.children(&children);
+   // note: we use a FileScanner to list the pids instead of using boost
+   // (FilePath class), because there is a bug in boost filesystem where
+   // directory iterators can segfault under heavy load while reading the /proc filesystem
+   // there aren't many details on this, but see https://svn.boost.org/trac10/ticket/10450
+   core::system::FileScannerOptions options;
+   options.recursive = false;
+
+   tree<FileInfo> subDirs;
+   Error error = core::system::scanFiles(core::toFileInfo(filePath), options, &subDirs);
    if (error)
       return error;
 
-   for (const FilePath& child : children)
+   for (const FileInfo& info : subDirs)
    {
-      boost::optional<unsigned int> fd = safe_convert::stringTo<unsigned int>(child.filename());
+      FilePath path(info.absolutePath());
+
+      boost::optional<uint32_t> fd = safe_convert::stringTo<uint32_t>(path.filename());
       if (fd)
       {
          pFds->push_back(fd.get());
-      }
-      else
-      {
-         LOG_ERROR_MESSAGE("Invalid fd filename: " + child.absolutePath());
       }
    }
 
    return Success();
 }
+
 #else
-Error getOpenFds(pid_t pid, std::vector<unsigned int> *pFds)
+Error getOpenFds(pid_t pid, std::vector<uint32_t> *pFds)
 {
    // get size of the buffer needed to hold the list of fds
    int bufferSize = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, 0, 0);
@@ -632,27 +641,31 @@ Error closeNonStdFileDescriptors()
    return closeFileDescriptorsFrom(STDERR_FILENO+1);
 }
 
-Error closeChildFileDescriptorsFrom(pid_t childPid, int pipeFd, unsigned int fdStart)
+Error closeChildFileDescriptorsFrom(pid_t childPid, int pipeFd, uint32_t fdStart)
 {
    std::size_t written;
 
-   std::vector<unsigned int> fds;
+   std::vector<uint32_t> fds;
    Error error = getOpenFds(childPid, &fds);
    if (!error)
    {
-      for (unsigned int fd : fds)
+      for (uint32_t fd : fds)
       {
-
          error = posixCall<std::size_t>(boost::bind(::write,
                                                     pipeFd,
                                                     &fd,
                                                     4),
                                         ERROR_LOCATION,
                                         &written);
+
          if (error)
+         {
             return error;
+         }
       }
    }
+   else
+      LOG_ERROR(error);
 
    // write message close (-1) even if we failed to retrieve pids above
    // this prevents the child from being stuck in limbo or interpreting its
@@ -665,8 +678,10 @@ Error closeChildFileDescriptorsFrom(pid_t childPid, int pipeFd, unsigned int fdS
                                              ERROR_LOCATION,
                                              &written);
 
-   if (error)
+   if (closeError)
+   {
       return error;
+   }
 
    return closeError;
 }
@@ -675,9 +690,20 @@ namespace signal_safe {
 
 namespace {
 
+void safeClose(uint32_t fd)
+{
+   while (::close(fd) == -1)
+   {
+      // keep trying the close operation if it was interrupted
+      // otherwise, the file descriptor is not open, so return
+      if (errno != EINTR)
+         break;
+   }
+}
+
 // worst case scenario - close all file descriptors possible
 // this can be EXTREMELY slow when max fd is set to a high value
-void closeFileDescriptorsFromSafe(unsigned int fdStart, rlim_t fdLimit)
+void closeFileDescriptorsFromSafe(uint32_t fdStart, rlim_t fdLimit)
 {
    // safe function is best effort - swallow all errors
    // this is necessary when invoked in a signal handler or
@@ -687,52 +713,64 @@ void closeFileDescriptorsFromSafe(unsigned int fdStart, rlim_t fdLimit)
       fdLimit = 1024; // default on linux
 
    // close file descriptors
-   for (unsigned int i = fdStart; i < fdLimit; ++i)
+   for (uint32_t i = fdStart; i < fdLimit; ++i)
    {
-      ::close(i);
+      safeClose(i);
    }
 }
 
 } // anonymous namespace
 
-void closeNonStdFileDescriptors(unsigned int fdLimit)
+void closeNonStdFileDescriptors(rlim_t fdLimit)
 {
    closeFileDescriptorsFromSafe(STDERR_FILENO+1, fdLimit);
 }
 
-void closeFileDescriptorsFromParent(int pipeFd, unsigned int fdStart, rlim_t fdLimit)
+void closeFileDescriptorsFromParent(int pipeFd, uint32_t fdStart, rlim_t fdLimit)
 {
    // read fds that we own from parent process pipe until we've read them all
    // the parent must give us this list because we cannot fetch it ourselves
    // in a signal-safe way, but we can read from the pipe safely
-   bool readDescriptors = false;
+   bool error = false;
 
-   char buffer[4];
+   int32_t buff;
    while (true)
    {
-      ssize_t bytesRead = ::read(pipeFd, buffer, 4);
+      ssize_t bytesRead = ::read(pipeFd, &buff, 4);
 
       // check for error
       if (bytesRead == -1 || bytesRead == 0)
-         break;
+      {
+         if (errno != EINTR &&
+             errno != EAGAIN)
+         {
+            error = true;
+            break;
+         }
+
+         continue;
+      }
 
       // determine which fd was just read from the parent
-      int res = static_cast<int>(*buffer);
-      if (res == -1)
+      if (buff == -1)
+      {
          break; // indicates no more fds are open by the process
+      }
 
-      readDescriptors = true;
-      unsigned int fd = static_cast<unsigned int>(res);
+      uint32_t fd = static_cast<uint32_t>(buff);
 
       // close the reported fd if it is in range
-      if (fd >= fdStart && fd < fdLimit)
-         ::close(fd);
+      if (fd >= fdStart && fd < fdLimit && buff != pipeFd)
+         safeClose(fd);
    }
 
    // if no descriptors could be read from the parent for whatever reason,
    // fall back to the slow close method detailed above
-   if (!readDescriptors)
-      closeFileDescriptorsFromSafe(fdStart, fdLimit);
+   if (error)
+   {
+      closeFileDescriptorsFromSafe(fdStart, pipeFd);
+      closeFileDescriptorsFromSafe(pipeFd + 1, fdLimit);
+   }
 }
 
 } // namespace signal_safe
@@ -1504,11 +1542,15 @@ Error processInfo(pid_t pid, ProcessInfo* pInfo)
    if (cmdline.empty())
       return systemError(boost::system::errc::protocol_error, ERROR_LOCATION);
 
-   // just keep first part of the command line (the rest represent the
-   // program arguments)
-   size_t pos = cmdline.find('\0');
-   if (pos != std::string::npos)
-      cmdline = cmdline.substr(0, pos);
+   std::vector<std::string> commandVector;
+   boost::algorithm::split(commandVector, cmdline, boost::is_any_of(boost::as_array("\0")));
+   if (commandVector.size() == 0)
+      return systemError(boost::system::errc::protocol_error, ERROR_LOCATION);
+   cmdline = commandVector.front();
+
+   // remove the first element from the command vector (the actual command)
+   // and simply keep the arguments as the command is stored in its own variable
+   commandVector.erase(commandVector.begin());
 
    // confirm the stat file exists for this pid
    boost::format statFmt("/proc/%1%/stat");
@@ -1550,6 +1592,9 @@ Error processInfo(pid_t pid, ProcessInfo* pInfo)
                          ERROR_LOCATION);
    }
 
+   // get the process state
+   std::string state = statFields[2];
+
    // get process parent id
    std::string ppidStr = statFields[3];
    pid_t ppid = safe_convert::stringTo<pid_t>(ppidStr, -1);
@@ -1564,6 +1609,8 @@ Error processInfo(pid_t pid, ProcessInfo* pInfo)
    pInfo->pgrp = pgrp;
    pInfo->username = user.username;
    pInfo->exe = FilePath(cmdline).filename();
+   pInfo->state = state;
+   pInfo->arguments = commandVector;
 
    return Success();
 }
@@ -1575,6 +1622,89 @@ bool isProcessRunning(pid_t pid)
    // requires root privilege if process is owned by another user
    int result = kill(pid, 0);
    return result == 0;
+}
+
+namespace {
+
+Error readStatFields(const FilePath& statFilePath,
+                     std::size_t numRequiredFields,
+                     std::vector<std::string>* pFields)
+{
+   if (!statFilePath.exists())
+      return core::fileNotFoundError(statFilePath, ERROR_LOCATION);
+
+   std::string str;
+   Error error = core::readStringFromFile(statFilePath, &str);
+   if (error)
+      return error;
+
+   boost::algorithm::split(*pFields, str,
+                           boost::is_any_of(" "),
+                           boost::algorithm::token_compress_on);
+   if (pFields->size() < numRequiredFields)
+   {
+      Error error = systemError(boost::system::errc::protocol_error,
+                                ERROR_LOCATION);
+      error.addProperty("stat-fields", str);
+      return error;
+   }
+
+   return Success();
+}
+
+} // anonymous namespace
+
+Error ProcessInfo::creationTime(boost::posix_time::ptime* pCreationTime) const
+{
+   // get clock ticks (bail if we can't)
+   double clockTicks = ::sysconf(_SC_CLK_TCK);
+   if (clockTicks == -1)
+      return systemError(errno, ERROR_LOCATION);
+
+   // get boot time
+   double bootTime = 0.0;
+   std::vector<std::string> lines;
+   Error error = core::readStringVectorFromFile(FilePath("/proc/stat"), &lines);
+   if (error)
+      return error;
+   BOOST_FOREACH(const std::string& line, lines)
+   {
+      if (boost::algorithm::starts_with(line, "btime"))
+      {
+         std::vector<std::string> fields;
+         boost::algorithm::split(fields,
+                                 line,
+                                 boost::algorithm::is_any_of(" \t"),
+                                 boost::algorithm::token_compress_on);
+         if (fields.size() > 1)
+         {
+            bootTime = safe_convert::stringTo<double>(fields[1], 0);
+            break;
+         }
+      }
+   }
+   if (bootTime == 0.0)
+   {
+      return systemError(boost::system::errc::protocol_error,
+                         "Unable to find btime in /proc/stat",
+                         ERROR_LOCATION);
+   }
+
+
+   // read the stat fields
+   boost::format fmt("/proc/%1%");
+   std::string dir = boost::str(fmt % pid);
+   FilePath procDir(dir);
+   std::vector<std::string> fields;
+   error = readStatFields(procDir.childPath("stat"), 22, &fields);
+   if (error)
+      return error;
+
+   // get the creation time and return success
+   double startTicks = safe_convert::stringTo<double>(fields[21], 0);
+   double startSecs = (startTicks / clockTicks) + bootTime;
+   *pCreationTime = date_time::timeFromSecondsSinceEpoch(startSecs);
+   return Success();
 }
 
 #else
@@ -1603,11 +1733,11 @@ Error processInfo(const std::string& process, std::vector<ProcessInfo>* pInfo, b
 {
    // use ps to capture process info
    // output format
-   // USER:PID:PPID:PGID:PROCNAME
+   // USER:PID:PPID:PGID:::STATE:::PROCNAME:ARG1:ARG2:...:ARGN
    // we use a colon as the separator as it is not a valid path character in OSX
-   std::string cmd = process.empty() ? "ps acxj | awk '{OFS=\":\"; print $1,$2,$3,$4,$10}'"
-                                     : "ps acxj | awk '{OFS=\":\"; if ($10==\"" +
-                                        process + "\") print $1,$2,$3,$4,$10}'";
+   std::string cmd = process.empty() ? "ps axj | awk '{OFS=\":\"; $5=\"\"; $6=\"\"; $8=\"\"; $9=\"\"; print}'"
+                                     : "ps axj | awk '{OFS=\":\"; if ($10==\"" +
+                                        process + "\"){ $5=\"\"; $6=\"\"; $8=\"\"; $9=\"\"; print} }'";
 
    core::system::ProcessResult result;
    Error error = core::system::runCommand(cmd,
@@ -1631,9 +1761,9 @@ Error processInfo(const std::string& process, std::vector<ProcessInfo>* pInfo, b
                               line,
                               boost::algorithm::is_any_of(":"));
 
-      if (lineInfo.size() < 5)
+      if (lineInfo.size() < 10)
       {
-         LOG_WARNING_MESSAGE("Exepcted 5 items from ps output but received: " + safe_convert::numberToString<size_t>(lineInfo.size()));
+         LOG_WARNING_MESSAGE("Exepcted 10 items from ps output but received: " + safe_convert::numberToString<size_t>(lineInfo.size()));
          continue;
       }
 
@@ -1642,6 +1772,12 @@ Error processInfo(const std::string& process, std::vector<ProcessInfo>* pInfo, b
       procInfo.pid = safe_convert::stringTo<pid_t>(lineInfo[1], 0);
       procInfo.ppid = safe_convert::stringTo<pid_t>(lineInfo[2], 0);
       procInfo.pgrp = safe_convert::stringTo<pid_t>(lineInfo[3], 0);
+      procInfo.state = lineInfo[6];
+
+      // parse process name and arguments
+      procInfo.exe = lineInfo[9];
+      if (lineInfo.size() > 10)
+         procInfo.arguments = std::vector<std::string>(lineInfo.begin() + 10, lineInfo.end());
 
       // check to see if this process info passes the filter criteria
       if (!filter || filter(procInfo))

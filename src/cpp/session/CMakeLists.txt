@@ -37,25 +37,20 @@ endif()
 # if(NOT EXISTS "${RSTUDIO_DEPENDENCIES_DIR}/common/rsconnect")
 #   message(FATAL_ERROR "rsconnect package not found (re-run install-dependencies script to install)")
 # endif()
-if(NOT EXISTS "${RSTUDIO_DEPENDENCIES_DIR}/common/r2d3")
-  message(FATAL_ERROR "r2d3 package not found (re-run install-dependencies script to install)")
-endif()
 
-# verify libclang is installed
+# verify libclang is installed (Windows only)
 if(WIN32)
-   set(LIBCLANG_VERSION "3.4")
-else()
-   set(LIBCLANG_VERSION "3.5")
-endif()
-set(LIBCLANG_DIR "${RSTUDIO_DEPENDENCIES_DIR}/common/libclang/${LIBCLANG_VERSION}")
-if(NOT EXISTS "${LIBCLANG_DIR}")
-  message(FATAL_ERROR "libclang ${LIBCLANG_VERSION} not found  (re-run install-dependencies script to install)")
-endif()
-set(LIBCLANG_HEADERS_DIR "${RSTUDIO_DEPENDENCIES_DIR}/common/libclang/builtin-headers")
-if(NOT EXISTS "${LIBCLANG_HEADERS_DIR}")
-  message(FATAL_ERROR "libclang builtin-headers not found  (re-run install-dependencies script to install)")
-endif()
+   set(LIBCLANG_VERSION "5.0.2")
+   set(LIBCLANG_DIR "${RSTUDIO_DEPENDENCIES_DIR}/common/libclang/${LIBCLANG_VERSION}")
+   if(NOT EXISTS "${LIBCLANG_DIR}")
+      message(FATAL_ERROR "libclang ${LIBCLANG_VERSION} not found  (re-run install-dependencies script to install)")
+   endif()
 
+   set(LIBCLANG_HEADERS_DIR "${RSTUDIO_DEPENDENCIES_DIR}/common/libclang/builtin-headers")
+   if(NOT EXISTS "${LIBCLANG_HEADERS_DIR}")
+      message(FATAL_ERROR "libclang builtin-headers not found  (re-run install-dependencies script to install)")
+   endif()
+endif()
 
 # include files
 file(GLOB_RECURSE SESSION_HEADER_FILES "*.h*")
@@ -134,6 +129,7 @@ set (SESSION_SOURCE_FILES
    modules/SessionPackrat.cpp
    modules/SessionPath.cpp
    modules/SessionPlots.cpp
+   modules/SessionPlumberViewer.cpp
    modules/SessionProfiler.cpp
    modules/SessionProjectTemplate.cpp
    modules/SessionRAddins.cpp
@@ -150,6 +146,7 @@ set (SESSION_SOURCE_FILES
    modules/SessionSpelling.cpp
    modules/SessionTerminalShell.cpp
    modules/SessionTests.cpp
+   modules/SessionThemes.cpp
    modules/SessionSVN.cpp
    modules/SessionUpdates.cpp
    modules/SessionVCS.cpp
@@ -177,9 +174,12 @@ set (SESSION_SOURCE_FILES
    modules/environment/EnvironmentUtils.cpp
    modules/environment/SessionEnvironment.cpp
    modules/jobs/SessionJobs.cpp
+   modules/jobs/ScriptJob.cpp
    modules/jobs/Job.cpp
+   modules/jobs/JobsApi.cpp
    modules/mathjax/SessionMathJax.cpp
    modules/overlay/SessionOverlay.cpp
+   modules/plumber/SessionPlumber.cpp
    modules/presentation/SessionPresentation.cpp
    modules/presentation/PresentationLog.cpp
    modules/presentation/PresentationState.cpp
@@ -354,9 +354,7 @@ if(WIN32)
    configure_file (${CMAKE_CURRENT_SOURCE_DIR}/rsession.exe.manifest
                    ${CMAKE_CURRENT_BINARY_DIR}/rsession.exe.manifest COPYONLY)
 
-   if(NOT RSTUDIO_SESSION_WIN64)
-      add_subdirectory(consoleio)
-   endif()
+   add_subdirectory(consoleio)
 endif()
 
 # define executable
@@ -424,169 +422,134 @@ endif()
 # install binary
 install(TARGETS rsession DESTINATION ${RSTUDIO_INSTALL_BIN})
 
-# include resources, R scripts and 64bit binaries if this isn't a session 64bit build
-if (NOT RSTUDIO_SESSION_WIN64)
+# include resources, R scripts and binaries
 
-   # postback
-   add_subdirectory(postback)
+# postback
+add_subdirectory(postback)
 
-   # HTML resources
-   file(GLOB HTML_RESOURCE_FILES "resources/*.html")
-   install(FILES ${HTML_RESOURCE_FILES}
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
-   # CSS resources
-   file(GLOB CSS_RESOURCE_FILES "resources/*.css")
-   install(FILES ${CSS_RESOURCE_FILES}
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
-   # templates
-   install(DIRECTORY "resources/templates"
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
-   # JS resources
-   file(GLOB JS_RESOURCE_FILES "resources/*.js")
-   install(FILES ${JS_RESOURCE_FILES}
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
-   # presentation
-   install(DIRECTORY "resources/presentation"
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
-   # notice
-   install(FILES "resources/NOTICE"
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# HTML resources
+file(GLOB HTML_RESOURCE_FILES "resources/*.html")
+install(FILES ${HTML_RESOURCE_FILES}
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# CSS resources
+file(GLOB CSS_RESOURCE_FILES "resources/*.css")
+install(FILES ${CSS_RESOURCE_FILES}
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# templates
+install(DIRECTORY "resources/templates"
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# JS resources
+file(GLOB JS_RESOURCE_FILES "resources/*.js")
+install(FILES ${JS_RESOURCE_FILES}
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# presentation
+install(DIRECTORY "resources/presentation"
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# notice
+install(FILES "resources/NOTICE"
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
 
-   # citation
-   install(FILES "resources/CITATION"
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# citation
+install(FILES "resources/CITATION"
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
 
-   # R scripts
-   file(GLOB R_MODULE_SRC_FILES "${CMAKE_CURRENT_BINARY_DIR}/modules/R/*.R")
-   install(FILES ${R_MODULE_SRC_FILES}
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/R/modules)
+# R scripts
+file(GLOB R_MODULE_SRC_FILES "${CMAKE_CURRENT_BINARY_DIR}/modules/R/*.R")
+install(FILES ${R_MODULE_SRC_FILES}
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/R/modules)
 
-   # install hunspell dictionaries
-   install(DIRECTORY "${RSTUDIO_DEPENDENCIES_DIR}/common/dictionaries"
-           DESTINATION "${RSTUDIO_INSTALL_SUPPORTING}/resources")
+# install hunspell dictionaries
+install(DIRECTORY "${RSTUDIO_DEPENDENCIES_DIR}/common/dictionaries"
+        DESTINATION "${RSTUDIO_INSTALL_SUPPORTING}/resources")
 
-   # install mathjax for local html preview
-   install(DIRECTORY "${RSTUDIO_DEPENDENCIES_DIR}/common/mathjax-26"
-           DESTINATION "${RSTUDIO_INSTALL_SUPPORTING}/resources")
+# install mathjax for local html preview
+install(DIRECTORY "${RSTUDIO_DEPENDENCIES_DIR}/common/mathjax-26"
+        DESTINATION "${RSTUDIO_INSTALL_SUPPORTING}/resources")
 
-   # icons for database connections
-   install(DIRECTORY "resources/connections"
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# icons for database connections
+install(DIRECTORY "resources/connections"
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
 
-   # install pandoc
-   set(PANDOC_BIN "${RSTUDIO_DEPENDENCIES_DIR}/common/pandoc/2.2")
-   file(GLOB PANDOC_FILES "${PANDOC_BIN}/pandoc*")
-   install(FILES ${PANDOC_FILES}
-           PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-           DESTINATION  ${RSTUDIO_INSTALL_BIN}/pandoc)
+# install pandoc
+set(PANDOC_BIN "${RSTUDIO_DEPENDENCIES_DIR}/common/pandoc/2.2.1")
+file(GLOB PANDOC_FILES "${PANDOC_BIN}/pandoc*")
+install(FILES ${PANDOC_FILES}
+        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        DESTINATION  ${RSTUDIO_INSTALL_BIN}/pandoc)
 
-   # install rmarkdown package
-   # file(GLOB RMARKDOWN_PACKAGE "${RSTUDIO_DEPENDENCIES_DIR}/common/rmarkdown*.tar.gz")
-   # install(FILES ${RMARKDOWN_PACKAGE}
-   #         DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/R/packages)
+# install rmarkdown package
+# file(GLOB RMARKDOWN_PACKAGE "${RSTUDIO_DEPENDENCIES_DIR}/common/rmarkdown*.tar.gz")
+# install(FILES ${RMARKDOWN_PACKAGE}
+#         DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/R/packages)
 
-   # install rsconnect package
-   file(GLOB RSCONNECT_PACKAGE "${RSTUDIO_DEPENDENCIES_DIR}/common/rsconnect*.tar.gz")
-   install(FILES ${RSCONNECT_PACKAGE}
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/R/packages)
-           
-   # install r2d3 package
-   file(GLOB R2D3_PACKAGE "${RSTUDIO_DEPENDENCIES_DIR}/common/r2d3*.tar.gz")
-   install(FILES ${R2D3_PACKAGE}
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/R/packages)
+# install rsconnect package
+#file(GLOB RSCONNECT_PACKAGE "${RSTUDIO_DEPENDENCIES_DIR}/common/rsconnect*.tar.gz")
+#install(FILES ${RSCONNECT_PACKAGE}
+#        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/R/packages)
 
-   # install PDF.js
-   install(DIRECTORY "resources/pdfjs"
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# install PDF.js
+install(DIRECTORY "resources/pdfjs"
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
 
-   # install DataTables
-   install(DIRECTORY "resources/grid"
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# install DataTables
+install(DIRECTORY "resources/grid"
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
 
-   # help resources
-   install(DIRECTORY "resources/help_resources"
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# help resources
+install(DIRECTORY "resources/help_resources"
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
 
-   # install pagedtable
-   install(DIRECTORY "resources/pagedtable"
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# install pagedtable
+install(DIRECTORY "resources/pagedtable"
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
 
-   # install profiler
-   install(DIRECTORY "resources/profiler"
-           DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
+# install profiler
+install(DIRECTORY "resources/profiler"
+        DESTINATION ${RSTUDIO_INSTALL_SUPPORTING}/resources)
 
-   # install libclang
-   if(WIN32)
-      file(GLOB LIBCLANG_32_FILES "${LIBCLANG_DIR}/x86/libclang.*")
-      install(PROGRAMS ${LIBCLANG_32_FILES}
-              DESTINATION  ${RSTUDIO_INSTALL_BIN}/rsclang/x86)
-      file(GLOB LIBCLANG_64_FILES "${LIBCLANG_DIR}/x86_64/libclang.*")
-      install(PROGRAMS ${LIBCLANG_64_FILES}
-              DESTINATION  ${RSTUDIO_INSTALL_BIN}/rsclang/x86_64)
-   else()
-      file(GLOB_RECURSE LIBCLANG_FILES "${LIBCLANG_DIR}/libclang.*")
-      install(PROGRAMS ${LIBCLANG_FILES}
-              DESTINATION  ${RSTUDIO_INSTALL_BIN}/rsclang)
-   endif()
+# install libclang
+if(WIN32)
+   file(GLOB LIBCLANG_32_FILES "${LIBCLANG_DIR}/x86/*")
+   install(PROGRAMS ${LIBCLANG_32_FILES}
+           DESTINATION  ${RSTUDIO_INSTALL_BIN}/rsclang/x86)
+   file(GLOB LIBCLANG_64_FILES "${LIBCLANG_DIR}/x86_64/*")
+   install(PROGRAMS ${LIBCLANG_64_FILES}
+           DESTINATION  ${RSTUDIO_INSTALL_BIN}/rsclang/x86_64)
 
    # install libclang builtin-headers
    install(DIRECTORY "${RSTUDIO_DEPENDENCIES_DIR}/common/libclang/builtin-headers"
            DESTINATION "${RSTUDIO_INSTALL_SUPPORTING}/resources/libclang")
-
-   # install winpty on windows
-   if(WIN32)
-      install(PROGRAMS "${WINPTY_BINDIR_32}/winpty.dll"
-              DESTINATION "${RSTUDIO_INSTALL_BIN}")
-      install(PROGRAMS "${WINPTY_BINDIR_32}/winpty-agent.exe"
-              DESTINATION "${RSTUDIO_INSTALL_BIN}")
-   endif()
-
-   # install 64 bit binaries if we are on win64
-   if(WIN32)
-      if(NOT ("$ENV{PROGRAMW6432}" STREQUAL ""))
-         file(MAKE_DIRECTORY  "${CMAKE_CURRENT_BINARY_DIR}/x64")
-         install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/x64"
-                 USE_SOURCE_PERMISSIONS
-                 DESTINATION  ${RSTUDIO_INSTALL_BIN})
-         install(PROGRAMS "${WINPTY_BINDIR_64}/winpty.dll"
-                 DESTINATION "${RSTUDIO_INSTALL_BIN}/x64")
-         install(PROGRAMS "${WINPTY_BINDIR_64}/winpty-agent.exe"
-                 DESTINATION "${RSTUDIO_INSTALL_BIN}/x64")
-
-      endif()
-   endif()
-
-   # install gnudiff, mysys_ssh, and sumatra-pdf on windows
-   if(WIN32)
-      install(DIRECTORY "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/gnudiff"
-              USE_SOURCE_PERMISSIONS
-              DESTINATION  ${RSTUDIO_INSTALL_BIN})
-      install(DIRECTORY "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/gnugrep"
-              USE_SOURCE_PERMISSIONS
-              DESTINATION  ${RSTUDIO_INSTALL_BIN})
-      install(DIRECTORY "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/msys-ssh-1000-18"
-              USE_SOURCE_PERMISSIONS
-              DESTINATION  ${RSTUDIO_INSTALL_BIN})
-
-
-      install(PROGRAMS "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/sumatra/3.1.1/SumatraPDF.exe"
-              DESTINATION  "${RSTUDIO_INSTALL_BIN}/sumatra")
-      install(FILES resources/sumatrapdfrestrict.ini
-               DESTINATION  "${RSTUDIO_INSTALL_BIN}/sumatra")
-
-      install(PROGRAMS "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/winutils/1.0/winutils.exe"
-              DESTINATION ${RSTUDIO_INSTALL_BIN}/winutils)
-      install(PROGRAMS "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/winutils/1.0/x64/winutils.exe"
-              DESTINATION ${RSTUDIO_INSTALL_BIN}/winutils/x64)
-
-   endif()
-
 endif()
 
-# install 64-bit MSVC runtime for session win64
-if(RSTUDIO_SESSION_WIN64)
-   include(InstallRequiredSystemLibraries)
-   install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} DESTINATION ${RSTUDIO_INSTALL_BIN})
+# install winpty on windows
+if(WIN32)
+   install(PROGRAMS "${WINPTY_BINDIR_64}/winpty.dll"
+           DESTINATION "${RSTUDIO_INSTALL_BIN}")
+   install(PROGRAMS "${WINPTY_BINDIR_64}/winpty-agent.exe"
+           DESTINATION "${RSTUDIO_INSTALL_BIN}")
+endif()
+
+# install gnudiff, mysys_ssh, and sumatra-pdf on windows
+if(WIN32)
+   install(DIRECTORY "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/gnudiff"
+           USE_SOURCE_PERMISSIONS
+           DESTINATION  ${RSTUDIO_INSTALL_BIN})
+   install(DIRECTORY "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/gnugrep"
+           USE_SOURCE_PERMISSIONS
+           DESTINATION  ${RSTUDIO_INSTALL_BIN})
+   install(DIRECTORY "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/msys-ssh-1000-18"
+           USE_SOURCE_PERMISSIONS
+           DESTINATION  ${RSTUDIO_INSTALL_BIN})
+
+   install(PROGRAMS "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/sumatra/3.1.1/SumatraPDF.exe"
+           DESTINATION  "${RSTUDIO_INSTALL_BIN}/sumatra")
+   install(FILES resources/sumatrapdfrestrict.ini
+           DESTINATION  "${RSTUDIO_INSTALL_BIN}/sumatra")
+
+   install(PROGRAMS "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/winutils/1.0/winutils.exe"
+           DESTINATION ${RSTUDIO_INSTALL_BIN}/winutils)
+   install(PROGRAMS "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/winutils/1.0/x64/winutils.exe"
+           DESTINATION ${RSTUDIO_INSTALL_BIN}/winutils/x64)
 endif()
 
 # add overlay if it exists

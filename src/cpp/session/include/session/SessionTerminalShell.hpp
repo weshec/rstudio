@@ -1,7 +1,7 @@
 /*
  * SessionTerminalShell.hpp
  *
- * Copyright (C) 2009-17 by RStudio, Inc.
+ * Copyright (C) 2009-18 by RStudio, Inc.
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -37,9 +37,9 @@ struct TerminalShell
 
       GitBash      = 1, // Win32: Bash from Windows Git
       WSLBash      = 2, // Win32: Windows Services for Linux (64-bit Windows-10 only)
-      Cmd32        = 3, // Win32: Windows command shell (32-bit)
+      Cmd32        = 3, // Win32: Windows command shell (32-bit), dropped support in RStudio 1.2
       Cmd64        = 4, // Win32: Windows command shell (64-bit)
-      PS32         = 5, // Win32: PowerShell (32-bit)
+      PS32         = 5, // Win32: PowerShell (32-bit), dropped support in RStudio 1.2
       PS64         = 6, // Win32: PowerShell (64-bit)
 
       PosixBash    = 7, // Posix: Bash
@@ -85,6 +85,9 @@ struct TerminalShell
 
    // get a user-friendly name for the given shell type
    static std::string getShellName(TerminalShellType type);
+   
+   // map an rstudioapi terminalCreate shell type string to enum type
+   static TerminalShellType shellTypeFromString(const std::string& str);
 };
 
 class AvailableTerminalShells

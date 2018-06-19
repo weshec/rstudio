@@ -13,9 +13,19 @@
 #
 #
 
+# Helpers --------------------------------------------------------------------
+
+.rs.addFunction("scriptActions", function() {
+   list(stop = function(id) {
+      .Call("rs_stopScriptJob", id, PACKAGE = "(embedding)")
+   })
+})
+
+# API functions --------------------------------------------------------------
+
 .rs.addApiFunction("addJob", function(name, status = "", progressUnits = 0L,
       actions = NULL, estimate = 0L, estimateRemaining = FALSE, running = FALSE, 
-      autoRemove = TRUE, group = "") {
+      autoRemove = TRUE, group = "", show = TRUE) {
 
    # validate arguments
    if (missing(name))
@@ -27,13 +37,13 @@
 
    # begin tracking job
    .Call("rs_addJob", name, status, progressUnits,
-      actions, estimate, estimateRemaining, running, autoRemove, group)
+      actions, estimate, estimateRemaining, running, autoRemove, group, show, PACKAGE = "(embedding)")
 })
 
 .rs.addApiFunction("removeJob", function(job) {
    if (missing(job))
       stop("Must specify job ID to remove.")
-   .Call("rs_removeJob", job)
+   .Call("rs_removeJob", job, PACKAGE = "(embedding)")
    invisible(NULL)
 })
 
@@ -42,7 +52,7 @@
       stop("Must specify job ID to set progress for.")
    if (missing(units))
       stop("Must specify number of progress units to set.")
-   .Call("rs_setJobProgress", job, units)
+   .Call("rs_setJobProgress", job, units, PACKAGE = "(embedding)")
    invisible(NULL)
 })
 
@@ -51,7 +61,7 @@
       stop("Must specify job ID to add progress to.")
    if (missing(units))
       stop("Must specify number of progress units to add")
-   .Call("rs_addJobProgress", job, units)
+   .Call("rs_addJobProgress", job, units, PACKAGE = "(embedding)")
    invisible(NULL)
 })
 
@@ -60,7 +70,7 @@
       stop("Must specify job ID to set status for.")
    if (missing(status))
       stop("Must specify job status to update.")
-   .Call("rs_setJobStatus", job, status)
+   .Call("rs_setJobStatus", job, status, PACKAGE = "(embedding)")
    invisible(NULL)
 })
 
@@ -69,12 +79,34 @@
    if (missing(job))
       stop("Must specify job ID to change state for.")
    state <- match.arg(state)
-   .Call("rs_setJobState", job, state)
+   .Call("rs_setJobState", job, state, PACKAGE = "(embedding)")
    invisible(NULL)
 })
 
 .rs.addApiFunction("addJobOutput", function(job, output, error = FALSE) {
-   .Call("rs_addJobOutput", job, output, error)
+   .Call("rs_addJobOutput", job, output, error, PACKAGE = "(embedding)")
    invisible(NULL)
 })
 
+.rs.addApiFunction("runScriptJob", function(path, 
+                                            encoding = "unknown",
+                                            workingDir = NULL, 
+                                            importEnv = FALSE,
+                                            exportEnv = FALSE) {
+   if (missing(path))
+      stop("Must specify path to R script to run.")
+   if (!file.exists(path))
+      stop("The R script '", path, "' does not exist.")
+   .Call("rs_runScriptJob", path, encoding, workingDir, importEnv, exportEnv, 
+         PACKAGE = "(embedding)")
+})
+
+.rs.addApiFunction("executeJobAction", function(job, action) {
+   if (missing(job))
+      stop("Must specify job ID to execute action for.")
+   .Call("rs_executeJobAction", job, action)
+})
+
+.rs.addApiFunction("stopJob", function(job) {
+   .rs.api.executeJobAction(job, "stop")
+})

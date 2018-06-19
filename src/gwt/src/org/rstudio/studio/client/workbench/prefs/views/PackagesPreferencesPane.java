@@ -35,6 +35,7 @@ import org.rstudio.core.client.StringUtil;
 import org.rstudio.core.client.resources.ImageResource2x;
 import org.rstudio.core.client.theme.DialogTabLayoutPanel;
 import org.rstudio.core.client.widget.MessageDialog;
+import org.rstudio.core.client.widget.Operation;
 import org.rstudio.core.client.widget.OperationWithInput;
 import org.rstudio.core.client.widget.TextBoxWithButton;
 import org.rstudio.studio.client.common.GlobalDisplay;
@@ -97,15 +98,15 @@ public class PackagesPreferencesPane extends PreferencesPane
                            cranMirrorTextBox_.setText(cranMirror_.getDisplay());
                         }
 
-                        cranMirrorStored_ = cranMirrorTextBox_.getTextBox().getText();
-
-                        secondaryReposWidget_.setCranRepoUrl(cranMirror_.getURL());
+                        secondaryReposWidget_.setCranRepoUrl(
+                           cranMirror_.getURL(),
+                           cranMirror_.getHost().equals("Custom")
+                        );
                      }     
                   });
-                 
                }
             },
-            false);
+            true);
       
       cranMirrorTextBox_.getTextBox().addValueChangeHandler(new ValueChangeHandler<String>()
       {
@@ -114,7 +115,7 @@ public class PackagesPreferencesPane extends PreferencesPane
          {
             if (!event.getValue().equals(cranMirror_.getDisplay()))
             {
-               secondaryReposWidget_.setCranRepoUrl(event.getValue());
+               secondaryReposWidget_.setCranRepoUrl(event.getValue(), true);
             }
          }
       });
@@ -251,8 +252,11 @@ public class PackagesPreferencesPane extends PreferencesPane
       cranMirrorTextBox_.setEnabled(true);
       if (!packagesPrefs.getCRANMirror().isEmpty())
       {
-         cranMirror_ = packagesPrefs.getCRANMirror();
-         secondaryReposWidget_.setCranRepoUrl(cranMirror_.getURL());
+         cranMirrorOriginal_ = cranMirror_ = packagesPrefs.getCRANMirror();
+         secondaryReposWidget_.setCranRepoUrl(
+            cranMirror_.getURL(),
+            cranMirror_.getHost().equals("Custom")
+         );
 
          if (cranMirror_.getHost().equals("Custom"))
          {
@@ -267,6 +271,7 @@ public class PackagesPreferencesPane extends PreferencesPane
          
          secondaryReposWidget_.setRepos(cranMirror_.getSecondaryRepos());
       }
+      
       useInternet2_.setEnabled(true);
       useInternet2_.setValue(packagesPrefs.getUseInternet2());
       useInternet2_.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
@@ -300,41 +305,57 @@ public class PackagesPreferencesPane extends PreferencesPane
       useNewlineInMakefiles_.setValue(packagesPrefs.getUseNewlineInMakefiles());
    }
 
+   private boolean secondaryReposHasChanged()
+   {
+      ArrayList<CRANMirror> secondaryRepos = secondaryReposWidget_.getRepos();
+
+      if (secondaryRepos.size() != cranMirrorOriginal_.getSecondaryRepos().size())
+         return true;
+
+      for (int i = 0; i < secondaryRepos.size(); i++)
+      {
+         if (secondaryRepos.get(i) != cranMirrorOriginal_.getSecondaryRepos().get(i))
+            return true;
+      }
+
+      return false;
+   }
+
    @Override
    public boolean onApply(RPrefs rPrefs)
    {
       boolean reload = super.onApply(rPrefs);
 
-      String mirrotTextValue = cranMirrorTextBox_.getTextBox().getText();
-      boolean cranRepoChangedToUrl = !mirrotTextValue.equals(cranMirrorStored_) && 
-                                      mirrotTextValue.startsWith("http");
-      ArrayList<CRANMirror> secondaryRepos = secondaryReposWidget_.getRepos();
+      String mirrorTextValue = cranMirrorTextBox_.getTextBox().getText();
 
-      if (cranRepoChangedToUrl || secondaryRepos.size() > 0) {
+      if (!mirrorTextValue.equals(cranMirrorStored_))
+         cranMirror_.setChanged(true);
 
-         if (cranRepoChangedToUrl)
-         {
-            cranMirror_ = CRANMirror.empty();
-            cranMirror_.setURL(mirrotTextValue);
+      boolean cranRepoChangedToUrl = !mirrorTextValue.equals(cranMirrorStored_) && 
+                                      mirrorTextValue.startsWith("http");
+   
+      cranMirror_.setChanged(true);
 
-            cranMirror_.setHost("Custom");
-            cranMirror_.setName("Custom");
-         }
-         
-         ArrayList<CRANMirror> repos = secondaryReposWidget_.getRepos();
-         if (repos.size() > 0)
-            cranMirror_.setSecondaryRepos(repos);
+      if (cranRepoChangedToUrl)
+      {
+         cranMirror_.setURL(mirrorTextValue);
 
-         server_.setCRANMirror(
-            cranMirror_,
-            new SimpleRequestCallback<Void>("Error Setting CRAN Mirror") {
-                @Override
-                public void onResponseReceived(Void response)
-                {
-                }
-            }
-         );
+         cranMirror_.setHost("Custom");
+         cranMirror_.setName("Custom");
       }
+      
+      ArrayList<CRANMirror> repos = secondaryReposWidget_.getRepos();
+      cranMirror_.setSecondaryRepos(repos);
+
+      server_.setCRANMirror(
+         cranMirror_,
+         new SimpleRequestCallback<Void>("Error Setting CRAN Mirror") {
+             @Override
+             public void onResponseReceived(Void response)
+             {
+             }
+         }
+      );
      
       // set packages prefs
       PackagesPrefs packagesPrefs = PackagesPrefs.create(
@@ -357,6 +378,7 @@ public class PackagesPreferencesPane extends PreferencesPane
    private final MirrorsServerOperations server_;
    
    private CRANMirror cranMirror_ = CRANMirror.empty();
+   private CRANMirror cranMirrorOriginal_ = CRANMirror.empty();
    private CheckBox useInternet2_;
    private TextBoxWithButton cranMirrorTextBox_;
    private CheckBox cleanupAfterCheckSuccess_;

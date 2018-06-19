@@ -46,6 +46,8 @@ enum errc_t {
    InvalidClientVersion = 12, // client is running an invalid version
    ServerOffline = 13,    // server is offline
    InvalidSession = 14,   // target session is invalid
+   MaxSessionsReached = 15,     // license error - max sessions reached
+   MaxUsersReached = 16,  // license error - max users reached
 
    // Execution errors -- These errors occurred during execution of the method.
    // Application state is therefore known based on the expected behavior
@@ -149,6 +151,20 @@ struct JsonRpcRequest
       method.clear();
       params.clear();
       kwparams.clear();
+   }
+
+   json::Object toJsonObject()
+   {
+      json::Object obj;
+      obj["method"] = method;
+      obj["params"] = params;
+      obj["kwparams"] = kwparams;
+      obj["sourceWindow"] = sourceWindow;
+      obj["clientId"] = clientId;
+      obj["version"] = version;
+      obj["isBackgroundConnection"] = isBackgroundConnection;
+
+      return obj;
    }
 };
 
@@ -1142,6 +1158,13 @@ public:
    { 
       setField(name, json::Value(value));
    }
+
+   template <typename T>
+   Error getField(const std::string& name,
+                 T* pValue)
+   {
+      return json::readObject(response_, name, pValue);
+   }
    
    // low level hook to set the full response
    void setResponse(const json::Object& response)
@@ -1163,6 +1186,12 @@ public:
    json::Object getRawResponse();
    
    void write(std::ostream& os) const;
+
+   static bool parse(const std::string& input,
+                     JsonRpcResponse* pResponse);
+
+   static bool parse(const json::Value& value,
+                     JsonRpcResponse* pResponse);
    
 private:
    json::Object response_;

@@ -294,7 +294,27 @@ void setJsonRpcResponse(const core::json::JsonRpcResponse& jsonRpcResponse,
                           error.code().message());
    }
 }     
-   
+
+bool JsonRpcResponse::parse(const std::string& input,
+                            JsonRpcResponse* pResponse)
+{
+   json::Value value;
+   bool valid = json::parse(input, &value);
+   if (!valid)
+      return false;
+
+   return parse(value, pResponse);
+}
+
+bool JsonRpcResponse::parse(const json::Value& value,
+                            JsonRpcResponse* pResponse)
+{
+   if (value.type() != json::ObjectType)
+      return false;
+
+   pResponse->response_ = value.get_obj();
+   return true;
+}
  
 class JsonRpcErrorCategory : public boost::system::error_category
 {
@@ -368,6 +388,12 @@ std::string JsonRpcErrorCategory::message( int ev ) const
 
       case errc::InvalidSession:
          return "Invalid session";
+
+      case errc::MaxSessionsReached:
+         return "The maximum amount of concurrent sessions for this license has been reached";
+
+      case errc::MaxUsersReached:
+         return "The maximum amount of concurrent users for this license has been reached";
 
       default:
          BOOST_ASSERT(false);

@@ -35,6 +35,7 @@
 #include <session/projects/SessionProjects.hpp>
 #include "modules/SessionErrors.hpp"
 #include "modules/SessionShinyViewer.hpp"
+#include "modules/SessionPlumberViewer.hpp"
 
 #include <r/RExec.hpp>
 #include <r/ROptions.hpp>
@@ -62,7 +63,9 @@ const char * const kInitialWorkingDirectory = "initialWorkingDirectory";
 const char * const kCRANMirrorName = "cranMirrorName";
 const char * const kCRANMirrorHost = "cranMirrorHost";
 const char * const kCRANMirrorUrl = "cranMirrorUrl";
+const char * const kCRANMirrorRepos = "cranMirrorRepos";
 const char * const kCRANMirrorCountry = "cranMirrorCountry";
+const char * const kCRANMirrorChanged = "cranMirrorChanged";
 const char * const kBioconductorMirrorName = "bioconductorMirrorName";
 const char * const kBioconductorMirrorUrl = "bioconductorMirrorUrl";
 const char * const kAlwaysSaveHistory = "alwaysSaveHistory";
@@ -93,12 +96,12 @@ T readPref(const json::Object& prefs,
    return value;
 }
 
-void setCRANReposOption(const std::string& url)
+ void setCRANReposOption(const std::string& url, const std::string& secondary)
 {
    if (!url.empty())
    {
       Error error = r::exec::RFunction(".rs.setCRANReposFromSettings",
-                                       url).call();
+                                       url, secondary).call();
       if (error)
          LOG_ERROR(error);
    }
@@ -272,7 +275,7 @@ void UserSettings::onSettingsFileChanged(
    // set underlying R repos options
    std::string cranMirrorURL = cranMirror().url;
    if (!cranMirrorURL.empty())
-      setCRANReposOption(cranMirrorURL);
+      setCRANReposOption(cranMirrorURL, cranMirror().secondary);
    std::string bioconductorMirrorURL = settings_.get(kBioconductorMirrorUrl);
    if (!bioconductorMirrorURL.empty())
       setBioconductorReposOption(bioconductorMirrorURL);
@@ -380,6 +383,9 @@ void UserSettings::updatePrefsCache(const json::Object& prefs) const
    int shinyViewerType = readPref<int>(prefs, "shiny_viewer_type", modules::shiny_viewer::SHINY_VIEWER_WINDOW);
    pShinyViewerType_.reset(new int(shinyViewerType));
 
+   int plumberViewerType = readPref<int>(prefs, "plumber_viewer_type", modules::plumber_viewer::PLUMBER_VIEWER_WINDOW);
+   pPlumberViewerType_.reset(new int(plumberViewerType));
+
    bool enableRSConnectUI = readPref<bool>(prefs, "enable_rstudio_connect", false);
    pEnableRSConnectUI_.reset(new bool(enableRSConnectUI));
 
@@ -485,6 +491,11 @@ int UserSettings::shinyViewerType() const
    return readUiPref<int>(pShinyViewerType_);
 }
 
+int UserSettings::plumberViewerType() const
+{
+   return readUiPref<int>(pPlumberViewerType_);
+}
+
 bool UserSettings::enableRSConnectUI() const
 {
    return readUiPref<bool>(pEnableRSConnectUI_);
@@ -583,9 +594,18 @@ void UserSettings::setShowLastDotValue(bool show)
 
 console_process::TerminalShell::TerminalShellType UserSettings::defaultTerminalShellValue() const
 {
-   return static_cast<console_process::TerminalShell::TerminalShellType>(
+   using ShellType = console_process::TerminalShell::TerminalShellType;
+   ShellType type = static_cast<ShellType>(
             settings_.getInt(kDefaultTerminalShell,
-               static_cast<int>(console_process::TerminalShell::DefaultShell)));
+            static_cast<int>(console_process::TerminalShell::DefaultShell)));
+
+   // map obsolete 32-bit shell types to their 64-bit equivalents
+   if (type == console_process::TerminalShell::Cmd32)
+      type = console_process::TerminalShell::Cmd64;
+   else if (type == console_process::TerminalShell::PS32)
+      type = console_process::TerminalShell::PS64;
+
+   return static_cast<console_process::TerminalShell::TerminalShellType>(type);
 }
 
 void UserSettings::setDefaultTerminalShellValue(
@@ -676,7 +696,18 @@ CRANMirror UserSettings::cranMirror() const
    mirror.name = settings_.get(kCRANMirrorName);
    mirror.host = settings_.get(kCRANMirrorHost);
    mirror.url = settings_.get(kCRANMirrorUrl);
+   mirror.secondary = settings_.get(kCRANMirrorRepos);
    mirror.country = settings_.get(kCRANMirrorCountry);
+   mirror.changed = settings_.getBool(kCRANMirrorChanged);
+
+   // upgrade 1.2 preview builds
+   std::vector<std::string> parts;
+   boost::split(parts, mirror.url, boost::is_any_of("|"));
+   if (parts.size() >= 2)
+   {
+      mirror.secondary = mirror.url;
+      mirror.url = parts.at(1);
+   }
 
    // if there is no URL then return the default RStudio mirror
    // (return the insecure version so we can rely on probing for
@@ -684,10 +715,16 @@ CRANMirror UserSettings::cranMirror() const
    // a previous bug/regression
    if (mirror.url.empty() || (mirror.url == "/"))
    {
-      mirror.name = "Global (CDN)";
-      mirror.host = "RStudio";
-      mirror.url = "http://cran.rstudio.com/";
-      mirror.country = "us";
+      // But only if not changed by the user
+      if (!mirror.changed)
+      {
+         mirror.name = "Global (CDN)";
+         mirror.host = "RStudio";
+         mirror.url = "http://cran.rstudio.com/";
+         mirror.secondary = "";
+         mirror.country = "us";
+         mirror.changed = false;
+      }
    }
 
    // re-map cran.rstudio.org to cran.rstudio.com
@@ -695,7 +732,7 @@ CRANMirror UserSettings::cranMirror() const
       mirror.url = "http://cran.rstudio.com/";
 
    // remap url without trailing slash
-   if (!boost::algorithm::ends_with(mirror.url, "/"))
+   if (mirror.url.size() > 0 && !boost::algorithm::ends_with(mirror.url, "/"))
       mirror.url += "/";
 
    return mirror;
@@ -703,17 +740,24 @@ CRANMirror UserSettings::cranMirror() const
 
 void UserSettings::setCRANMirror(const CRANMirror& mirror)
 {
+    setCRANMirror(mirror, true);
+}
+
+void UserSettings::setCRANMirror(const CRANMirror& mirror, bool update)
+{
    settings_.set(kCRANMirrorName, mirror.name);
    settings_.set(kCRANMirrorHost, mirror.host);
    settings_.set(kCRANMirrorUrl, mirror.url);
+   settings_.set(kCRANMirrorRepos, mirror.secondary);
    settings_.set(kCRANMirrorCountry, mirror.country);
+   settings_.set(kCRANMirrorChanged, mirror.changed);
 
    // only set the underlying option if it's not empty (some
    // evidence exists that this is possible, it doesn't appear to
    // be possible in the current code however previous releases
    // may have let this in)
-   if (!mirror.url.empty())
-      setCRANReposOption(mirror.url);
+   if (!mirror.url.empty() && update)
+      setCRANReposOption(mirror.url, mirror.secondary);
 }
 
 BioconductorMirror UserSettings::bioconductorMirror() const

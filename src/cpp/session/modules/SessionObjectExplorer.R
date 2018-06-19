@@ -46,7 +46,11 @@
                                                           start)
 {
    # retrieve object from cache
-   object  <- .rs.explorer.getCachedObject(id, extractingCode)
+   object <- .rs.explorer.getCachedObject(
+      id = id,
+      extractingCode = extractingCode,
+      refresh = FALSE
+   )
    
    # construct context
    context <- .rs.explorer.createContext(
@@ -65,14 +69,31 @@
 
 .rs.addJsonRpcHandler("explorer_begin_inspect", function(id, name)
 {
-   .rs.rpc.explorer_inspect_object(
-      id             = id,
+   # retrieve object from cache
+   object <- .rs.explorer.getCachedObject(
+      id = id,
       extractingCode = NULL,
-      name           = name,
-      access         = NULL,
-      tags           = character(),
-      start          = 0
+      refresh = TRUE
    )
+   
+   # construct context
+   context <- .rs.explorer.createContext(
+      name      = name,
+      access    = NULL,
+      tags      = character(),
+      recursive = 1,
+      start     = 1,
+      end       = .rs.explorer.defaultRowLimit
+   )
+   
+   # generate inspection result
+   result <- .rs.explorer.inspectObject(object, context)
+   result
+})
+
+.rs.addJsonRpcHandler("explorer_end_inspect", function(id)
+{
+   .rs.explorer.removeCachedObject(id)
 })
 
 .rs.addFunction("objectAddress", function(object)
@@ -167,13 +188,33 @@
 })
 
 .rs.addFunction("explorer.getCachedObject", function(id,
-                                                     extractingCode = NULL)
+                                                     extractingCode = NULL,
+                                                     refresh = FALSE)
 {
+   # retrieve cached entry
    cache <- .rs.explorer.getCache()
-   object <- cache[[id]]
+   entry <- cache[[id]]
+   
+   # get object (refreshing if requested). note that refreshes following a
+   # restart may lose reference to the original object if e.g. the object lived
+   # in the global environment but the global environment was not restored
+   if (refresh) {
+      tryCatch(
+         expr = {
+            object <- eval(parse(text = entry$title), envir = entry$envir)
+            entry$object <- object
+            cache[[id]] <- entry
+         },
+         error = identity
+      )
+   }
+   object <- entry$object
+   
+   # return if no sub-extraction needed
    if (is.null(extractingCode))
       return(object)
    
+   # otherwise, evaluate expression to retrieve sub-object
    envir <- new.env(parent = globalenv())
    envir[["__OBJECT__"]] <- object
    
@@ -272,7 +313,7 @@
    name <- .rs.explorer.objectName(object, title)
    
    # generate a handle for this object
-   handle <- .rs.explorer.createHandle(object, name, title)
+   handle <- .rs.explorer.createHandle(object, name, title, envir)
    
    # fire event to client
    .rs.explorer.fireEvent(.rs.explorer.types$NEW, handle)
@@ -280,10 +321,12 @@
 
 .rs.addFunction("explorer.createHandle", function(object,
                                                   name,
-                                                  title)
+                                                  title,
+                                                  envir)
 {
    # save in cached data environment
-   id <- .rs.explorer.setCachedObject(object)
+   entry <- list(object = object, name = name, title = title, envir = envir)
+   id <- .rs.explorer.setCachedObject(entry)
    
    # return a handle object
    list(
@@ -722,7 +765,7 @@
 {
    output <- ""
    more <- FALSE
-   comma <- FALSE
+   trailing <- " ..."
    n <- 6L
    
    if (is.primitive(object))
@@ -759,19 +802,18 @@
    }
    else if (is.factor(object))
    {
-      fmt <- "Factor with %i levels: %s"
+      fmt <- "%s with %i %s: %s"
       header <- head(levels(object), n)
-      output <- sprintf(fmt, length(levels(object)), paste(.rs.surround(header, with = "\""), collapse = ", "))
+      collapse <- if (is.ordered(object)) " < " else ", "
+      output <- sprintf(
+         fmt,
+         if (is.ordered(object)) "Ordered factor" else "Factor",
+         length(levels(object)),
+         if (length(levels(object)) == 1) "level" else "levels",
+         paste(.rs.surround(header, with = "\""), collapse = collapse)
+      )
       more <- length(levels(object)) > n
-      comma <- TRUE
-   }
-   else if (is.ordered(object))
-   {
-      fmt <- "Ordered factor with %i levels: %s"
-      header <- head(object, n)
-      output <- sprintf(fmt, length(object), paste(.rs.surround(header, with = "\""), collapse = ", "))
-      more <- length(object) > n
-      comma <- TRUE
+      trailing <- if (is.ordered(object)) " < ..." else ", ..."
    }
    else if (is.character(object))
    {
@@ -794,14 +836,24 @@
    }
    else if (is.data.frame(object))
    {
-      fmt <- "A %s with %s rows and %s columns"
-    
+      fmt <- "A %s with %s %s and %s %s"
+      
       name <- if (inherits(object, "tbl"))
          "tibble"
+      else if (inherits(object, "data.table"))
+         "data.table"
       else
          "data.frame"
       
-      output <- sprintf(fmt, name, nrow(object), ncol(object))
+      output <- sprintf(
+         fmt,
+         name,
+         nrow(object),
+         if (nrow(object) == 1) "row" else "rows",
+         ncol(object),
+         if (ncol(object) == 1) "column" else "columns"
+      )
+      
       more <- FALSE
    }
    else if (is.pairlist(object))
@@ -876,7 +928,7 @@
    if (more || nchar(output) > 80)
    {
       truncated <- substring(output, 1, 80)
-      output <- paste(truncated, if (comma) ", ..." else "...")
+      output <- paste(truncated, trailing, sep = "")
    }
    
    output

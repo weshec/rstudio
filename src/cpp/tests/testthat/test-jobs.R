@@ -83,7 +83,6 @@ test_that("auto remove property is respected", {
    expect_equal(jobs[[jobId]], NULL)
 })
 
-
 test_that("job timers are started", {
    jobId <- .rs.api.addJob(name = "job7", autoRemove = FALSE)
 
@@ -108,5 +107,37 @@ test_that("job output is persisted", {
    .rs.api.setJobState(jobId, "failed")
    output <- .rs.invokeRpc("job_output", jobId, 0L)
    expect_true(length(output) == 3)
+})
+
+test_that("jobs can be cleaned up", {
+    # add a couple of jobs
+   job8 <- .rs.api.addJob(name = "job8", autoRemove = FALSE, running = TRUE)
+   job9 <- .rs.api.addJob(name = "job9", autoRemove = FALSE, running = TRUE)
+
+   # complete one
+   .rs.api.setJobState(job8, "failed")
+
+   jobs <- .rs.invokeRpc("get_jobs")
+   expect_true(job8 %in% names(jobs))
+
+   # clean it up
+   .rs.invokeRpc("clear_jobs")
+
+   # there should be 1 job remaining (only the completed job should be cleared)
+   jobs <- .rs.invokeRpc("get_jobs")
+   expect_true(job9 %in% names(jobs))
+   expect_false(job8 %in% names(jobs))
+})
+
+test_that("custom job actions are executed", {
+   mutable <- 0
+   job10 <- .rs.api.addJob(name = "job10", autoRemove = FALSE, running = TRUE,
+                           actions = list(
+                              mutate = function(id) { mutable <<- 1 }))
+   expect_equal(0, mutable)
+
+   # execute the custom action and validate that the value becomes what we want
+   .rs.api.executeJobAction(job10, "mutate")
+   expect_equal(1, mutable)
 })
 

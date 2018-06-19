@@ -201,9 +201,9 @@ public:
       return std::string(rLibsUser_.c_str());
    }
 
-   std::string rCRANRepos() const
+   std::string rCRANUrl() const
    {
-      return std::string(rCRANRepos_.c_str());
+      return std::string(rCRANUrl_.c_str());
    }
 
    std::string rCRANMultipleRepos() const
@@ -214,6 +214,11 @@ public:
    std::string rCRANReposUrl() const
    {
       return std::string(rCRANReposUrl_.c_str());
+   }
+
+   std::string rCRANReposFile() const
+   {
+      return std::string(rCRANReposFile_.c_str());
    }
 
    int rCompatibleGraphicsEngineVersion() const
@@ -565,6 +570,16 @@ public:
       return verifySignatures_;
    }
 
+   std::string sessionRsaPublicKey() const
+   {
+      return sessionRsaPublicKey_;
+   }
+
+   std::string sessionRsaPrivateKey() const
+   {
+      return sessionRsaPrivateKey_;
+   }
+
 private:
    void resolvePath(const core::FilePath& resourcePath,
                     std::string* pPath);
@@ -641,9 +656,10 @@ private:
    std::string sessionLibraryPath_;
    std::string sessionPackageArchivesPath_;
    std::string rLibsUser_;
-   std::string rCRANRepos_;
+   std::string rCRANUrl_;
    std::string rCRANMultipleRepos_;
    std::string rCRANReposUrl_;
+   std::string rCRANReposFile_;
    bool autoReloadSource_ ;
    int rCompatibleGraphicsEngineVersion_;
    std::string rResourcesPath_;
@@ -718,6 +734,10 @@ private:
 
    // connect
    std::string defaultRSConnectServer_;
+
+   // in-session generated RSA keys
+   std::string sessionRsaPublicKey_;
+   std::string sessionRsaPrivateKey_;
 
    // overlay options
    std::map<std::string,std::string> overlayOptions_;
