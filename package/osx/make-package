@@ -27,6 +27,11 @@ cd $BUILD_DIR
 rm -f CMakeCache.txt
 rm -rf build/_CPack_Packages
 
+# target 10.11 El Capitan as oldest supported version; cmake sets and caches
+# CMAKE_OSX_DEPLOYMENT_TARGET to value of this environment variable
+export MACOSX_DEPLOYMENT_TARGET="10.11"
+# export CMAKE_OSX_SYSROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk
+
 cmake -DRSTUDIO_TARGET=Desktop \
       -DCMAKE_BUILD_TYPE=Release \
       -DRSTUDIO_PACKAGE_BUILD=1 \
