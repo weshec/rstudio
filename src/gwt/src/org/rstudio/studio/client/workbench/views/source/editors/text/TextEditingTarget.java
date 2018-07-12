@@ -1439,6 +1439,13 @@ public class TextEditingTarget implements
                if (event.isSet())
                {
                   Breakpoint breakpoint = null;
+                 
+                  // don't set breakpoints in Plumber documents
+                  if (SourceDocument.isPlumberFile(extendedType_))
+                  {
+                     view_.showWarningBar("Breakpoints not supported in Plumber API files.");
+                     return;
+                  }
                   
                   // don't try to set breakpoints in unsaved code
                   if (isNewDoc())
@@ -2652,7 +2659,15 @@ public class TextEditingTarget implements
             ? prefs_.autoAppendNewline().getValue()
             : projConfig_.ensureTrailingNewline();
             
-      if (autoAppendNewline || fileType_.isPython())
+      // auto-append newlines for commonly-used R startup files
+      String path = StringUtil.notNull(docUpdateSentinel_.getPath());
+      boolean isStartupFile =
+            path.endsWith("/.Rprofile") ||
+            path.endsWith("/.Rprofile.site") ||
+            path.endsWith("/.Renviron") ||
+            path.endsWith("/.Renviron.site");
+      
+      if (autoAppendNewline || isStartupFile || fileType_.isPython())
       {
          String lastLine = docDisplay_.getLine(lineCount - 1);
          if (lastLine.length() != 0)

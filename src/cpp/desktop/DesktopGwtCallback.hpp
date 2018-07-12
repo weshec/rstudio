@@ -57,7 +57,7 @@ class GwtCallback : public QObject
 
 public:
    GwtCallback(MainWindow* pMainWindow, GwtWindow* pOwner);
-
+   void initialize();
    int collectPendingQuitRequest();
 
 Q_SIGNALS:
@@ -128,9 +128,6 @@ public Q_SLOTS:
    void prepareForNamedWindow(QString name, bool allowExternalNavigate,
                               bool showToolbar);
    void closeNamedWindow(QString name);
-
-   // Image coordinates are relative to the window contents
-   void copyImageToClipboard(int left, int top, int width, int height);
 
    // coordinates are relative to entire containing web page
    void copyPageRegionToClipboard(int left, int top, int width, int height);
@@ -242,8 +239,8 @@ public Q_SLOTS:
    QString getDisplayDpi();
 
 private:
+   void invokeReflowComment();
    Synctex& synctex();
-
    void activateAndFocusOwner();
 
 private:

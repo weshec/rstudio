@@ -74,6 +74,8 @@ GwtCallback::GwtCallback(MainWindow* pMainWindow, GwtWindow* pOwner)
      pSynctex_(nullptr),
      pendingQuit_(PendingQuitNone)
 {
+   initialize();
+   
 #ifdef Q_OS_LINUX
    // listen for clipboard selection change events (X11 only); allow override in options or 
    // via environment variable. clipboard monitoring enables us to support middle-click paste on
@@ -96,6 +98,17 @@ GwtCallback::GwtCallback(MainWindow* pMainWindow, GwtWindow* pOwner)
       }
    }
 #endif
+}
+
+#ifndef Q_OS_MAC
+void GwtCallback::initialize()
+{
+}
+#endif
+
+void GwtCallback::invokeReflowComment()
+{
+   pMainWindow_->invokeCommand(QStringLiteral("reflowComment"));
 }
 
 Synctex& GwtCallback::synctex()
@@ -220,6 +233,8 @@ QString resolveAliasedPath(const QString& path)
 
 } // anonymous namespace
 
+#ifndef Q_OS_MAC
+
 QString GwtCallback::getOpenFileName(const QString& caption,
                                      const QString& label,
                                      const QString& dir,
@@ -252,8 +267,6 @@ QString GwtCallback::getOpenFileName(const QString& caption,
    desktop::raiseAndActivateWindow(owner);
    return createAliasedPath(result);
 }
-
-#ifndef Q_OS_MAC
 
 namespace {
 
@@ -741,21 +754,10 @@ void GwtCallback::activateSatelliteWindow(QString name)
    pOwner_->webPage()->activateWindow(name);
 }
 
-void GwtCallback::copyImageToClipboard(int left, int top, int width, int height)
-{
-   // TODO: 'updatePositionDependentActions()' is no longer available;
-   // we might only be able to copy the currently selected image?
-   pOwner_->triggerPageAction(QWebEnginePage::CopyImageToClipboard);
-}
-
 void GwtCallback::copyPageRegionToClipboard(int left, int top, int width, int height)
 {
-   QPixmap pixmap = QPixmap::grabWidget(pMainWindow_->webView(),
-                                        left,
-                                        top,
-                                        width,
-                                        height);
-
+   auto* view = pMainWindow_->webView();
+   QPixmap pixmap = view->grab(QRect(left, top, width, height));
    QApplication::clipboard()->setPixmap(pixmap);
 }
 

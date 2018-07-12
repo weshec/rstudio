@@ -14,6 +14,8 @@
  */
 package org.rstudio.studio.client.workbench.prefs.views;
 
+import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.core.client.Scheduler.ScheduledCommand;
 import com.google.gwt.dom.client.SelectElement;
 import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.event.dom.client.ChangeEvent;
@@ -37,7 +39,10 @@ import org.rstudio.studio.client.application.events.EventBus;
 import org.rstudio.studio.client.application.events.ThemeChangedEvent;
 import org.rstudio.studio.client.workbench.prefs.model.RPrefs;
 import org.rstudio.studio.client.workbench.prefs.model.UIPrefs;
+import org.rstudio.studio.client.workbench.views.source.editors.text.themes.AceTheme;
 import org.rstudio.studio.client.workbench.views.source.editors.text.themes.AceThemes;
+
+import java.util.HashMap;
 
 public class AppearancePreferencesPane extends PreferencesPane
 {
@@ -50,7 +55,7 @@ public class AppearancePreferencesPane extends PreferencesPane
       res_ = res;
       uiPrefs_ = uiPrefs;
       eventBus_ = eventBus;
-
+      
       VerticalPanel leftPanel = new VerticalPanel();
       
       relaunchRequired_ = false;
@@ -152,29 +157,6 @@ public class AppearancePreferencesPane extends PreferencesPane
          });
       }
 
-      // Ligatures are opt-in on desktop
-      if (Desktop.isDesktop())
-      {
-         // reduce padding on font face element to group with ligature check
-         fontFace_.getElement().getStyle().setMarginBottom(3, Unit.PX);
-         
-         // create checkbox for ligatures
-         useLigatures_ = new CheckBox("Use ligatures");
-         useLigatures_.setValue(uiPrefs.useLigatures().getValue());
-         leftPanel.add(useLigatures_);
-         useLigatures_.addValueChangeHandler(new ValueChangeHandler<Boolean>()
-         {
-            @Override
-            public void onValueChange(ValueChangeEvent<Boolean> event)
-            {
-               preview_.setUseLigatures(event.getValue());
-            }
-         });
-         
-         // add padding beneath 
-         useLigatures_.getElement().getStyle().setMarginBottom(12, Unit.PX);
-      }
-
       String[] labels = {"7", "8", "9", "10", "11", "12", "13", "14", "16", "18", "24", "36"};
       String[] values = new String[labels.length];
       for (int i = 0; i < labels.length; i++)
@@ -194,31 +176,22 @@ public class AppearancePreferencesPane extends PreferencesPane
             preview_.setFontSize(Double.parseDouble(fontSize_.getValue()));
          }
       });
-
-      
-      String[] themeOptions = themes.getThemeNames();
-      for (int idxTheme = 0; idxTheme < themeOptions.length; idxTheme++) {
-         if (themeOptions[idxTheme] == "TextMate") {
-            themeOptions[idxTheme] = "TextMate (default)";
-         }
-      }
-      
+   
       theme_ = new SelectWidget("Editor theme:",
-                                themeOptions,
-                                themes.getThemeNames(),
+                                new String[0],
+                                new String[0],
                                 false);
+      theme_.getListBox().getElement().<SelectElement>cast().setSize(7);
+      theme_.getListBox().getElement().getStyle().setHeight(225, Unit.PX);
       theme_.getListBox().addChangeHandler(new ChangeHandler()
       {
          public void onChange(ChangeEvent event)
          {
-            preview_.setTheme(themes.getThemeUrl(theme_.getValue()));
+            preview_.setTheme(themeList_.get(theme_.getValue()).getUrl());
          }
       });
-      theme_.getListBox().getElement().<SelectElement>cast().setSize(7);
-      theme_.getListBox().getElement().getStyle().setHeight(225, Unit.PX);
       theme_.addStyleName(res.styles().themeChooser());
-      theme_.setValue(themes.getEffectiveThemeName(uiPrefs_.theme().getGlobalValue()));
-      
+   
       leftPanel.add(fontSize_);
       leftPanel.add(theme_);
 
@@ -228,9 +201,8 @@ public class AppearancePreferencesPane extends PreferencesPane
       preview_ = new AceEditorPreview(CODE_SAMPLE);
       preview_.setHeight(previewDefaultHeight_);
       preview_.setWidth("278px");
-      preview_.setTheme(themes.getThemeUrl(uiPrefs_.theme().getGlobalValue()));
+      preview_.setTheme(uiPrefs_.theme().getGlobalValue().getUrl());
       preview_.setFontSize(Double.parseDouble(fontSize_.getValue()));
-      preview_.setUseLigatures(uiPrefs.useLigatures().getValue());
       updatePreviewZoomLevel();
       previewPanel.add(preview_);
 
@@ -241,8 +213,25 @@ public class AppearancePreferencesPane extends PreferencesPane
       hpanel.add(previewPanel);
 
       add(hpanel);
+      
+      // Themes are retrieved asynchronously, so we have to update the theme list and preview panel
+      // asynchronously too. We also need to wait until the next event cycle so that the progress
+      // indicator will be ready.
+      Scheduler.get().scheduleDeferred(() -> updateThemes(themes));
    }
    
+   private void updateThemes(AceThemes themes)
+   {
+      themes.getThemes(
+         themeList ->
+         {
+            themeList_ = themeList;
+         
+            theme_.setChoices(themeList_.keySet().toArray(new String[0]));
+            theme_.setValue(uiPrefs_.theme().getGlobalValue().getName());
+         },
+         getProgressIndicator());
+   }
    
    private void updatePreviewZoomLevel()
    {
@@ -270,17 +259,12 @@ public class AppearancePreferencesPane extends PreferencesPane
    {
       boolean restartRequired = super.onApply(rPrefs);
 
-      if (useLigatures_ != null)
-      {
-         // restart required to re-render with ligatures
-         restartRequired |= 
-               useLigatures_.getValue() != uiPrefs_.useLigatures().getValue();
-         uiPrefs_.useLigatures().setGlobalValue(useLigatures_.getValue());
-      }
-
       double fontSize = Double.parseDouble(fontSize_.getValue());
       uiPrefs_.fontSize().setGlobalValue(fontSize);
-      uiPrefs_.theme().setGlobalValue(theme_.getValue());
+      if (!StringUtil.equals(theme_.getValue(), uiPrefs_.theme().getGlobalValue().getName()))
+      {
+         uiPrefs_.theme().setGlobalValue(themeList_.get(theme_.getValue()));
+      }
       if (Desktop.isDesktop())
       {
          if (initialFontFace_ != fontFace_.getValue())
@@ -299,10 +283,10 @@ public class AppearancePreferencesPane extends PreferencesPane
 
       String themeName = flatTheme_.getValue();
 
-      uiPrefs_.getFlatTheme().setGlobalValue(themeName);  
-      ThemeChangedEvent themeChangedEvent = new ThemeChangedEvent(flatTheme_.getValue());
-      eventBus_.fireEvent(themeChangedEvent);
-      eventBus_.fireEventToAllSatellites(themeChangedEvent);
+      if (!StringUtil.equals(themeName, uiPrefs_.getFlatTheme().getGlobalValue()))
+      {
+         uiPrefs_.getFlatTheme().setGlobalValue(themeName);
+      }
       
       return restartRequired || relaunchRequired_;
    }
@@ -322,11 +306,11 @@ public class AppearancePreferencesPane extends PreferencesPane
    private String initialFontFace_;
    private SelectWidget zoomLevel_;
    private String initialZoomLevel_;
-   private CheckBox useLigatures_;
    private final SelectWidget flatTheme_;
    private EventBus eventBus_;
    private Boolean relaunchRequired_;
    private static String previewDefaultHeight_ = "498px";
+   private HashMap<String, AceTheme> themeList_;
 
    private static final String CODE_SAMPLE =
          "# plotting of R objects\n" +

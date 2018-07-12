@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.rstudio.core.client.BrowseCap;
 import org.rstudio.core.client.Debug;
 import org.rstudio.core.client.StringUtil;
 import org.rstudio.core.client.dom.WindowEx;
@@ -196,6 +197,7 @@ import org.rstudio.studio.client.workbench.views.source.editors.profiler.model.P
 import org.rstudio.studio.client.workbench.views.source.editors.profiler.model.ProfileOperationResponse;
 import org.rstudio.studio.client.workbench.views.source.editors.text.IconvListResult;
 import org.rstudio.studio.client.workbench.views.source.editors.text.rmd.ChunkDefinition;
+import org.rstudio.studio.client.workbench.views.source.editors.text.themes.AceTheme;
 import org.rstudio.studio.client.workbench.views.source.model.CheckForExternalEditResult;
 import org.rstudio.studio.client.workbench.views.source.model.CppCapabilities;
 import org.rstudio.studio.client.workbench.views.source.model.CppCompletionResult;
@@ -1189,6 +1191,18 @@ public class RemoteServer implements Server
    {
       sendRequest(RPC_SCOPE, IGNORE_NEXT_LOADED_PACKAGE_CHECK, requestCallback);
    }
+   
+   public void getPackageNewsUrl(String packageName,
+                                 String libraryPath,
+                                 ServerRequestCallback<String> requestCallback)
+   {
+      JSONArray params = new JSONArrayBuilder()
+            .add(packageName)
+            .add(libraryPath)
+            .get();
+      
+      sendRequest(RPC_SCOPE, GET_PACKAGE_NEWS_URL, params, requestCallback);
+   }
 
    public void setCRANMirror(CRANMirror mirror,
                              ServerRequestCallback<Void> requestCallback)
@@ -1423,7 +1437,11 @@ public class RemoteServer implements Server
    {
       if (Desktop.isDesktop())
       {
-         return "file://" + resolveAliasedPath(file);
+         String prefix = BrowseCap.isWindowsDesktop()
+               ? "file:///"
+               : "file://";
+
+         return prefix + resolveAliasedPath(file);
       }
       else if (!file.isDirectory())
       {
@@ -5490,6 +5508,12 @@ public class RemoteServer implements Server
                   true,
                   callback);
    }
+   
+   @Override
+   public void getThemes(ServerRequestCallback<JsArray<AceTheme>> callback)
+   {
+      sendRequest(RPC_SCOPE, GET_THEMES, new JSONArray(), callback);
+   }
 
    private String clientId_;
    private String clientVersion_ = "";
@@ -5589,6 +5613,7 @@ public class RemoteServer implements Server
    private static final String INIT_DEFAULT_USER_LIBRARY = "init_default_user_library";
    private static final String LOADED_PACKAGE_UPDATES_REQUIRED = "loaded_package_updates_required";
    private static final String IGNORE_NEXT_LOADED_PACKAGE_CHECK = "ignore_next_loaded_package_check";
+   private static final String GET_PACKAGE_NEWS_URL = "get_package_news_url";
    private static final String GET_PACKAGE_INSTALL_CONTEXT = "get_package_install_context";
    private static final String IS_PACKAGE_LOADED = "is_package_loaded";
    private static final String SET_CRAN_MIRROR = "set_cran_mirror";
@@ -5930,4 +5955,6 @@ public class RemoteServer implements Server
 
    private static final String GET_SECONDARY_REPOS = "get_secondary_repos";
    private static final String VALIDATE_CRAN_REPO = "validate_cran_repo";
+   
+   private static final String GET_THEMES = "get_themes";
 }

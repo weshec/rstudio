@@ -18,9 +18,7 @@ import java.util.ArrayList;
 
 import org.rstudio.core.client.Debug;
 import org.rstudio.core.client.StringUtil;
-import org.rstudio.core.client.widget.FocusHelper;
 import org.rstudio.core.client.widget.ModalDialog;
-import org.rstudio.core.client.widget.Operation;
 import org.rstudio.core.client.widget.OperationWithInput;
 import org.rstudio.core.client.widget.ProgressIndicator;
 import org.rstudio.core.client.widget.SimplePanelWithProgress;
@@ -116,7 +114,7 @@ public class ChooseMirrorDialog extends ModalDialog<CRANMirror>
       
       if (input.getHost().equals("Custom"))
       {
-         progressIndicator_.onProgress("Validating CRAN repo...");
+         progressIndicator_.onProgress("Validating CRAN repository...");
          
          mirrorOperations_.validateCranRepo(
             new ServerRequestCallback<Boolean>()
@@ -127,7 +125,7 @@ public class ChooseMirrorDialog extends ModalDialog<CRANMirror>
                   
                   if (!validated)
                   {
-                     progressIndicator_.onError("The given URL does not appear to be a valid CRAN repo");
+                     progressIndicator_.onError("The given URL does not appear to be a valid CRAN repository");
                      onValidated.execute(false);
                   }
                   else
@@ -188,7 +186,6 @@ public class ChooseMirrorDialog extends ModalDialog<CRANMirror>
          public void onResponseReceived(JsArray<CRANMirror> mirrors)
          {   
             // keep internal list of mirrors 
-            boolean haveInsecureMirror = false;
             mirrors_ = new ArrayList<CRANMirror>(mirrors.length());
             
             // create list box and select default item
@@ -206,8 +203,6 @@ public class ChooseMirrorDialog extends ModalDialog<CRANMirror>
                   mirrors_.add(mirror);
                   String item = mirrorSource_.getLabel(mirror);
                   String value = mirrorSource_.getURL(mirror);
-                  if (!value.startsWith("https"))
-                     haveInsecureMirror = true;
 
                   listBox_.addItem(item, value);
                }
@@ -219,7 +214,7 @@ public class ChooseMirrorDialog extends ModalDialog<CRANMirror>
             panel.setWidget(listBox_);
             
             // set caption
-            setText("Choose Primary Repo");
+            setText("Choose Primary Repository");
           
             // update ok button on changed
             listBox_.addDoubleClickHandler(new DoubleClickHandler() {

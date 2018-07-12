@@ -31,11 +31,9 @@ import com.google.inject.Inject;
 import java.util.ArrayList;
 
 import org.rstudio.core.client.BrowseCap;
-import org.rstudio.core.client.StringUtil;
 import org.rstudio.core.client.resources.ImageResource2x;
 import org.rstudio.core.client.theme.DialogTabLayoutPanel;
 import org.rstudio.core.client.widget.MessageDialog;
-import org.rstudio.core.client.widget.Operation;
 import org.rstudio.core.client.widget.OperationWithInput;
 import org.rstudio.core.client.widget.TextBoxWithButton;
 import org.rstudio.studio.client.common.GlobalDisplay;
@@ -74,7 +72,7 @@ public class PackagesPreferencesPane extends PreferencesPane
       management.add(headerLabel("Package management"));
       
       cranMirrorTextBox_ = new TextBoxWithButton(
-            "Primary CRAN repo:",
+            "Primary CRAN repository:",
             "",
             "Change...",
             null,
@@ -124,7 +122,7 @@ public class PackagesPreferencesPane extends PreferencesPane
       textBoxWithChooser(cranMirrorTextBox_);
       cranMirrorTextBox_.setText("");
 
-      Label secondaryReposLabel = new Label("Secondary repos:");
+      Label secondaryReposLabel = new Label("Secondary repositories:");
       secondaryReposLabel.getElement().getStyle().setMarginLeft(2, Unit.PX);
       secondaryReposLabel.getElement().getStyle().setMarginBottom(2, Unit.PX);
 
@@ -252,7 +250,8 @@ public class PackagesPreferencesPane extends PreferencesPane
       cranMirrorTextBox_.setEnabled(true);
       if (!packagesPrefs.getCRANMirror().isEmpty())
       {
-         cranMirrorOriginal_ = cranMirror_ = packagesPrefs.getCRANMirror();
+         cranMirror_ = packagesPrefs.getCRANMirror();
+         
          secondaryReposWidget_.setCranRepoUrl(
             cranMirror_.getURL(),
             cranMirror_.getHost().equals("Custom")
@@ -303,22 +302,6 @@ public class PackagesPreferencesPane extends PreferencesPane
       
       useNewlineInMakefiles_.setEnabled(true);
       useNewlineInMakefiles_.setValue(packagesPrefs.getUseNewlineInMakefiles());
-   }
-
-   private boolean secondaryReposHasChanged()
-   {
-      ArrayList<CRANMirror> secondaryRepos = secondaryReposWidget_.getRepos();
-
-      if (secondaryRepos.size() != cranMirrorOriginal_.getSecondaryRepos().size())
-         return true;
-
-      for (int i = 0; i < secondaryRepos.size(); i++)
-      {
-         if (secondaryRepos.get(i) != cranMirrorOriginal_.getSecondaryRepos().get(i))
-            return true;
-      }
-
-      return false;
    }
 
    @Override
@@ -378,7 +361,6 @@ public class PackagesPreferencesPane extends PreferencesPane
    private final MirrorsServerOperations server_;
    
    private CRANMirror cranMirror_ = CRANMirror.empty();
-   private CRANMirror cranMirrorOriginal_ = CRANMirror.empty();
    private CheckBox useInternet2_;
    private TextBoxWithButton cranMirrorTextBox_;
    private CheckBox cleanupAfterCheckSuccess_;

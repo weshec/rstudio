@@ -19,6 +19,11 @@ import com.google.gwt.core.client.JavaScriptObject;
 
 public class PackageInfo extends JavaScriptObject 
 {
+   public static enum Source
+   {
+      Unknown, Base, Custom, CRAN, Bioconductor, GitHub
+   }
+   
    protected PackageInfo()
    {
    }
@@ -31,6 +36,14 @@ public class PackageInfo extends JavaScriptObject
    public final native String getLibrary() /*-{
       return this.library == null ? "" : this.library;
    }-*/;
+   
+   public final native String getLibraryAbsolute() /*-{
+      return this.library_absolute || "";
+   }-*/;
+   
+   public final native int getLibraryIndex() /*-{
+      return this.library_index || 0;
+   }-*/;
 
    public final native String getVersion() /*-{
       return this.version == null ? "" : this.version;
@@ -40,12 +53,16 @@ public class PackageInfo extends JavaScriptObject
       return this.desc == null ? "" : this.desc;
    }-*/;
    
-   public final native String getUrl() /*-{
-      return this.url;
+   public final native String getHelpUrl() /*-{
+      return "help/library/" + this.name + "/html/00Index.html";
    }-*/;
 
    public final native String getBrowseUrl() /*-{
-      return this.browse;
+      return this.browse_url;
+   }-*/;
+   
+   public final native String getPackageSource() /*-{
+      return this.source;
    }-*/;
    
    public final native boolean isLoaded() /*-{
@@ -118,4 +135,5 @@ public class PackageInfo extends JavaScriptObject
       packageInfo.loaded = loaded;
       return packageInfo;
    }-*/;
+   
 }

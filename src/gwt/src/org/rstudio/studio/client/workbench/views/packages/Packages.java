@@ -409,7 +409,6 @@ public class Packages
    private void doUpdatePackages(final PackageInstallContext installContext)
    {
       new CheckForUpdatesDialog(
-         globalDisplay_,
          new ServerDataSource<JsArray<PackageUpdate>>() {
             public void requestData(
                ServerRequestCallback<JsArray<PackageUpdate>> requestCallback)
@@ -685,39 +684,47 @@ public class Packages
       server_.getPackageState(manualUpdate, new PackageStateUpdater());
    }
 
-   public void loadPackage(final String packageName, final String libName)
-   {  
+   public void loadPackage(PackageInfo info)
+   {
       // check status to make sure the package was unloaded
-      checkPackageStatusOnNextConsolePrompt(packageName, libName);
+      checkPackageStatusOnNextConsolePrompt(info.getName(), info.getLibrary());
       
       // send the command
       StringBuilder command = new StringBuilder();
-      command.append("library(\"");
-      command.append(packageName);
-      command.append("\"");
-      command.append(", lib.loc=\"");
-      command.append(libName.replaceAll("\\\\", "\\\\\\\\"));
-      command.append("\"");
-      command.append(")");
+      if (info.getLibraryIndex() == 1)
+      {
+         command.append("library(")
+                .append(info.getName())
+                .append(")");
+      }
+      else
+      {
+         command.append("library(")
+                .append(info.getName())
+                .append(", lib.loc = \"")
+                .append(info.getLibraryAbsolute().replaceAll("\\\\", "\\\\\\\\"))
+                .append("\")");
+      }
+      
       events_.fireEvent(new SendToConsoleEvent(command.toString(), true));
      
    }
 
-   public void unloadPackage(String packageName, String libName)
+   public void unloadPackage(PackageInfo info)
    { 
       // check status to make sure the package was unloaded
-      checkPackageStatusOnNextConsolePrompt(packageName, libName);
+      checkPackageStatusOnNextConsolePrompt(info.getName(), info.getLibrary());
       
       StringBuilder command = new StringBuilder();
       command.append("detach(\"package:");
-      command.append(packageName);
-      command.append("\", unload=TRUE)");
+      command.append(info.getName());
+      command.append("\", unload = TRUE)");
       events_.fireEvent(new SendToConsoleEvent(command.toString(), true));
    }
    
    public void showHelp(PackageInfo packageInfo)
    {
-      events_.fireEvent(new ShowHelpEvent(packageInfo.getUrl())) ;
+      events_.fireEvent(new ShowHelpEvent(packageInfo.getHelpUrl())) ;
    }
    
    public void onPackageStateChanged(PackageStateChangedEvent event)

@@ -74,6 +74,7 @@ Error initialize();
 Error startup();
 Error reloadConfiguration();
 void shutdown();
+bool requireLocalR();
 
 } // namespace overlay
 } // namespace server
@@ -202,6 +203,7 @@ void httpServerAddHandlers()
    uri_handlers::add("/pdf_js", secureAsyncHttpHandler(proxyContentRequest));
    uri_handlers::add("/mathjax", secureAsyncHttpHandler(proxyContentRequest));
    uri_handlers::add("/connections", secureAsyncHttpHandler(proxyContentRequest));
+   uri_handlers::add("/theme", secureAsyncHttpHandler(proxyContentRequest));
 
    // content handlers which might be accessed outside the context of the
    // workbench get secure + authentication when required
@@ -520,7 +522,7 @@ int main(int argc, char * const argv[])
       // happen after daemonize so that upstart script can correctly track us
       std::string errMsg;
       bool detected = r_environment::initialize(&errMsg);
-      if (!detected)
+      if (!detected && overlay::requireLocalR())
       {
          program_options::reportError(errMsg, ERROR_LOCATION);
          return EXIT_FAILURE;
