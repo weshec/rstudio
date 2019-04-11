@@ -32,6 +32,7 @@ set (MONITOR_SOURCE_FILES
 include_directories(
    include
    ${CMAKE_CURRENT_BINARY_DIR}
+   ${EXT_SOURCE_DIR}
    ${CORE_SOURCE_DIR}/include
    ${SERVER_CORE_SOURCE_DIR}/include
 )

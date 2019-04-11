@@ -97,13 +97,13 @@ void Log::onSlideDeckChanged(const SlideDeck& slideDeck)
       const std::vector<Command>& commands = slides[i].commands();
       for (const Command& command : commands)
       {
-         recordCommand(i, command);
+         recordCommand(gsl::narrow_cast<int>(i), command);
       }
 
       const std::vector<AtCommand>& atCommands = slides[i].atCommands();
       for (const AtCommand& atCommand : atCommands)
       {
-         recordCommand(i, atCommand.command());
+         recordCommand(gsl::narrow_cast<int>(i), atCommand.command());
       }
    }
 }

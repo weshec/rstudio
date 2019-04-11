@@ -84,6 +84,7 @@ include_directories(
    include
    ${CMAKE_CURRENT_BINARY_DIR}
    ${CORE_SOURCE_DIR}/include
+   ${EXT_SOURCE_DIR}
    ${LIBR_INCLUDE_DIRS}
 )
 

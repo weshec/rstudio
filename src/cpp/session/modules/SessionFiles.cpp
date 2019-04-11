@@ -13,7 +13,6 @@
  *
  */
 
-
 #include "SessionFiles.hpp"
 
 #include <csignal>
@@ -23,6 +22,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <gsl/gsl_util>
 
 #include <boost/lexical_cast.hpp>
 
@@ -482,7 +482,7 @@ void handleFilesRequest(const http::Request& request,
    }
    
    // compute path to file
-   int prefixLen = prefix.length();
+   int prefixLen = gsl::narrow_cast<int>(prefix.length());
    std::string relativePath = http::util::urlDecode(uri.substr(prefixLen));
    if (relativePath.empty())
    {

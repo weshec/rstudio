@@ -1,7 +1,7 @@
 /*
  * RUtil.cpp
  *
- * Copyright (C) 2009-18 by RStudio, Inc.
+ * Copyright (C) 2009-19 by RStudio, Inc.
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -12,7 +12,6 @@
  * AGPL (http://www.gnu.org/licenses/agpl-3.0.txt) for more details.
  *
  */
-
 
 #include <r/RUtil.hpp>
 
@@ -28,6 +27,7 @@
 #include <r/RExec.hpp>
 
 #include <R_ext/Riconv.h>
+#include <gsl/gsl_util>
 
 #ifndef CP_ACP
 # define CP_ACP 0
@@ -182,7 +182,7 @@ core::Error iconvstr(const std::string& value,
             ::Riconv_close(handle);
             Error error = systemError(R_ERRNO, ERROR_LOCATION);
             error.addProperty("str", value);
-            error.addProperty("len", value.length());
+            error.addProperty("len", gsl::narrow_cast<int>(value.length()));
             error.addProperty("from", from);
             error.addProperty("to", to);
             return error;
