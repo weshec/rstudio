@@ -13,13 +13,11 @@
 #
 #
 
-cmake_minimum_required(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.4.3)
 
 project(DESKTOP)
 
-if(CMAKE_VERSION VERSION_GREATER "3.0.0")
-   cmake_policy(SET CMP0043 NEW)
-endif()
+cmake_policy(SET CMP0043 NEW)
 
 # on unix prefer qtsdk installs over system-level libraries. note this
 # can be overriden by defining QT_QMAKE_EXECUTABLE when invoking cmake
