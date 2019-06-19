@@ -20,6 +20,7 @@ import com.google.gwt.aria.client.Roles;
 import org.rstudio.core.client.Debug;
 import org.rstudio.core.client.StringUtil;
 import org.rstudio.core.client.widget.FormLabel;
+import org.rstudio.core.client.widget.LabeledTextBox;
 import org.rstudio.core.client.widget.ModalDialog;
 import org.rstudio.core.client.widget.OperationWithInput;
 import org.rstudio.core.client.widget.ProgressIndicator;
@@ -41,7 +42,6 @@ import com.google.gwt.event.dom.client.DoubleClickHandler;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.user.client.ui.ListBox;
-import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 
@@ -159,13 +159,9 @@ public class ChooseMirrorDialog extends ModalDialog<CRANMirror>
    {
       VerticalPanel root = new VerticalPanel();
 
-      FormLabel customLabel = new FormLabel("Custom:");
-      root.add(customLabel);
-
-      customTextBox_ = new TextBox();
+      customTextBox_ = new LabeledTextBox("Custom:");
       customTextBox_.setStylePrimaryName(RESOURCES.styles().customRepo());
       root.add(customTextBox_);
-      customLabel.setFor(customTextBox_);
 
       FormLabel mirrorsLabel = new FormLabel("CRAN Mirrors:");
       mirrorsLabel.getElement().getStyle().setMarginTop(8, Unit.PX);
@@ -270,7 +266,7 @@ public class ChooseMirrorDialog extends ModalDialog<CRANMirror>
    private final Source mirrorSource_;
    private ArrayList<CRANMirror> mirrors_ = null;
    private ListBox listBox_ = null;
-   private TextBox customTextBox_ = null;
+   private LabeledTextBox customTextBox_ = null;
    private final MirrorsServerOperations mirrorOperations_;
    private final ProgressIndicator progressIndicator_;
 }

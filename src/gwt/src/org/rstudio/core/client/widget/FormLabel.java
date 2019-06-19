@@ -17,7 +17,6 @@ package org.rstudio.core.client.widget;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.Widget;
-import org.rstudio.core.client.ElementIds;
 import org.rstudio.core.client.StringUtil;
 
 /**
@@ -26,28 +25,36 @@ import org.rstudio.core.client.StringUtil;
  */
 public class FormLabel extends Label
 {
+   /**
+    * Pass if <code>for</code> attribute not needed on the label element, or it will be set 
+    * later via <code>setFor()</code>
+    */
+   public static String NoForId = null;
+  
    public FormLabel()
    {
       this("");
    }
 
    /**
-    * Create a label to associate with a form control via <code>setFor</code>
+    * Create a label to associate with a form control either via <code>setFor()</code>
+    * or by having the control nested in the <code>label</code> element
     * @param text label text
     */
    public FormLabel(String text)
    {
-      super(text, "placeholder");
+      super(text, NoForId);
    }
 
   /**
-   * Creates a label to associate with a form control via <code>setFor</code>
+   * Creates a label to associate with a form control either via <code>setFor()</code>
+   * or by having the control nested in the <code>label</code> element
    * @param text the new label's text
    * @param wordWrap <code>false</code> to disable word wrapping
    */
    public FormLabel(String text, boolean wordWrap)
    {
-      super(text, "placeholder", wordWrap);
+      super(text, NoForId, wordWrap);
    }
 
    /**
@@ -70,14 +77,7 @@ public class FormLabel extends Label
       String controlId = widget.getElement().getId();
       if (StringUtil.isNullOrEmpty(controlId))
       {
-         if (StringUtil.isNullOrEmpty(getText()))
-         {
-            controlId = DOM.createUniqueId();
-         }
-         else
-         {
-            controlId = ElementIds.idFromLabel(getText());
-         }
+         controlId = DOM.createUniqueId();
          widget.getElement().setId(controlId);
       }
       getElement().setAttribute("for", controlId);
@@ -90,6 +90,7 @@ public class FormLabel extends Label
     */
    public void setFor(String controlId)
    {
-      getElement().setAttribute("for", controlId);
+      if (!StringUtil.isNullOrEmpty(controlId))
+         getElement().setAttribute("for", controlId);
    }
 }

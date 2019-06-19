@@ -26,9 +26,7 @@
 
    <g:HTMLPanel styleName="{style.panel}">
       <p>
-         <widget:FormLabel ui:field="labelSearchPattern_" text="Find:"/>
-         <g:TextBox ui:field="txtSearchPattern_" styleName="{style.pattern}"/>
-         <br/>
+         <widget:LabeledTextBox ui:field="txtSearchPattern_" labelText="Find:" styleName="{style.pattern}"/>
          <g:CheckBox ui:field="checkboxCaseSensitive_" text="Case sensitive"/>
          &#x00a0;&#x00a0;&#x00a0;&#x00a0;
          <g:CheckBox ui:field="checkboxRegex_" text="Regular expression"/>

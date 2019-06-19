@@ -35,6 +35,7 @@ import org.rstudio.core.client.files.FileSystemItem;
 import org.rstudio.core.client.js.JsUtil;
 import org.rstudio.core.client.widget.DirectoryChooserTextBox;
 import org.rstudio.core.client.widget.FormLabel;
+import org.rstudio.core.client.widget.LabeledTextBox;
 import org.rstudio.core.client.widget.ModalDialog;
 import org.rstudio.core.client.widget.OperationWithInput;
 import org.rstudio.studio.client.RStudioGinjector;
@@ -100,7 +101,6 @@ public class FindInFilesDialog extends ModalDialog<FindInFilesDialog.State>
       dirChooser_ = new DirectoryChooserTextBox("Search in:", null);
       dirChooser_.setText("");
       mainWidget_ = GWT.<Binder>create(Binder.class).createAndBindUi(this);
-      labelSearchPattern_.setFor(txtSearchPattern_);
       labelFilePatterns_.setFor(listPresetFilePatterns_);
       setOkButtonCaption("Find");
 
@@ -114,7 +114,7 @@ public class FindInFilesDialog extends ModalDialog<FindInFilesDialog.State>
       });
       manageFilePattern();
 
-      txtSearchPattern_.getElement().setAttribute("spellcheck", "false");
+      txtSearchPattern_.setEnableSpellcheck(false);
       
       txtSearchPattern_.addKeyUpHandler(new KeyUpHandler()
       {
@@ -238,9 +238,7 @@ public class FindInFilesDialog extends ModalDialog<FindInFilesDialog.State>
    }
 
    @UiField
-   FormLabel labelSearchPattern_;
-   @UiField
-   TextBox txtSearchPattern_;
+   LabeledTextBox txtSearchPattern_;
    @UiField
    CheckBox checkboxRegex_;
    @UiField
