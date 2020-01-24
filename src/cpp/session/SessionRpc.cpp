@@ -19,6 +19,7 @@
 #include "SessionHttpMethods.hpp"
 #include "SessionClientEventQueue.hpp"
 
+#include <session/SessionClientEventService.hpp>
 #include <shared_core/json/Json.hpp>
 #include <core/json/JsonRpc.hpp>
 #include <core/Exec.hpp>
@@ -108,6 +109,46 @@ void saveJsonResponse(const core::Error& error, core::json::JsonRpcResponse *pSr
 {
    *pError = error;
    *pDest = *pSrc;
+}
+
+SEXP rs_getClientEvents()
+{
+   /*
+   ClientEventQueue& clientEventQueue = session::clientEventQueue();
+
+   // deque the events
+   std::vector<ClientEvent> events;
+   clientEventQueue.remove(&events);
+   core::json::Array response;
+   int nextEventId = 0;
+
+   for (std::vector<ClientEvent>::const_iterator it = events.begin();
+        it != events.end(); ++it)
+   {
+      json::Object event;
+      it->asJsonObject(nextEventId++, &event);
+      response.push_back(event);
+   }
+   */
+   
+   core::json::Array response = session::clientEventService().clientEvents();
+
+   SEXP result = R_NilValue;
+   r::sexp::Protect protect;
+   result = r::sexp::create(response, &protect);
+   return result;
+}
+
+SEXP rs_pauseClientEventErase()
+{
+   session::clientEventService().pauseErase();
+   return R_NilValue;    
+}
+
+SEXP rs_continueClientEventErase()
+{
+   session::clientEventService().continueErase();
+   return R_NilValue;    
 }
 
 // invoke an HTTP RPC directly from R.
@@ -317,6 +358,9 @@ Error initialize()
    s_pJsonRpcMethods = new core::json::JsonRpcAsyncMethods;
 
    RS_REGISTER_CALL_METHOD(rs_invokeRpc);
+   RS_REGISTER_CALL_METHOD(rs_getClientEvents);
+   RS_REGISTER_CALL_METHOD(rs_pauseClientEventErase);
+   RS_REGISTER_CALL_METHOD(rs_continueClientEventErase);
 
    return Success();
 }

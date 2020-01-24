@@ -62,6 +62,8 @@ Error ClientEventService::start(const std::string& clientId)
 {
    // set our clientid
    setClientId(clientId, false);
+
+   pauseErase_ = false;
    
    // block all signals for launch of background thread (will cause it
    // to never receive signals)
@@ -139,17 +141,20 @@ std::string ClientEventService::clientId()
 
 void ClientEventService::erasePreviouslyDeliveredEvents(int lastClientEventIdSeen)
 {
-   LOCK_MUTEX(mutex_)
+   if (!pauseErase_)
    {
-      clientEvents_.erase(
-               std::remove_if(clientEvents_.begin(),
-                              clientEvents_.end(),
-                              boost::bind(hasEventIdLessThanOrEqualTo,
-                                          _1,
-                                          lastClientEventIdSeen)),
-               clientEvents_.end());
+      LOCK_MUTEX(mutex_)
+      {
+         clientEvents_.erase(
+                  std::remove_if(clientEvents_.begin(),
+                                 clientEvents_.end(),
+                                 boost::bind(hasEventIdLessThanOrEqualTo,
+                                             _1,
+                                             lastClientEventIdSeen)),
+                  clientEvents_.end());
+      }
+      END_LOCK_MUTEX
    }
-   END_LOCK_MUTEX
 }
 
 bool ClientEventService::havePendingClientEvents()

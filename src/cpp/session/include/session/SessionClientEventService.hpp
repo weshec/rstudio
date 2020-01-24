@@ -54,6 +54,21 @@ public:
 
    std::string clientId();
 
+   void pauseErase()
+   {
+      pauseErase_ = true;
+   }
+ 
+   void continueErase()
+   {
+      pauseErase_ = false;
+   }
+
+   core::json::Array clientEvents() const
+   {
+      return clientEvents_;
+   }
+
 private:
    void run();
 
@@ -69,6 +84,8 @@ private:
 
    std::string clientId_ ;
    core::json::Array clientEvents_ ;
+
+   bool pauseErase_;
 };
    
   

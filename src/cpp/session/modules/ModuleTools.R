@@ -25,6 +25,21 @@
    .Call("rs_invokeRpc", method, .rs.scalarListFromList(args), PACKAGE = "(embedding)")
 })
 
+.rs.addFunction("getClientEvents", function()
+{
+   .Call("rs_getClientEvents", PACKAGE = "(embedding)")
+})
+
+.rs.addFunction("pauseClientEventErase", function()
+{
+   .Call("rs_pauseClientEventErase", PACKAGE = "(embedding)")
+})
+
+.rs.addFunction("continueClientEventErase", function()
+{
+   .Call("rs_continueClientEventErase", PACKAGE = "(embedding)")
+})
+
 .rs.addFunction("showErrorMessage", function(title, message)
 {
    .Call("rs_showErrorMessage", title, message, PACKAGE = "(embedding)")
