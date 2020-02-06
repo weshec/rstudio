@@ -69,6 +69,7 @@ public class JobItem extends Composite implements JobItemView
       String progressHost();
       String elapsed();
       String spinner();
+      String rerun();
       String outer();
       String panel();
       String select();
@@ -103,6 +104,10 @@ public class JobItem extends Composite implements JobItemView
    public JobItem(@Assisted Job job, FireEvents eventBus, Preferences prefs)
    {
       eventBus_ = eventBus;
+      rerun_ = new ToolbarButton(ToolbarButton.NoText, "Rerun job", new ImageResource2x(RESOURCES.jobRerun()), evet ->
+      {
+         eventBus_.fireEvent(new JobExecuteActionEvent(job.id, JobConstants.ACTION_STOP));
+      });
       stop_ = new ToolbarButton(ToolbarButton.NoText, "Stop job", new ImageResource2x(RESOURCES.jobCancel()), evt ->
       {
          eventBus_.fireEvent(new JobExecuteActionEvent(job.id, JobConstants.ACTION_STOP));
@@ -232,6 +237,9 @@ public class JobItem extends Composite implements JobItemView
       
       // show spinner if actively executing
       spinner_.setVisible(job.state == JobConstants.STATE_RUNNING);
+
+      // show rerun if not actively executing
+      rerun_.setVisible(job.state != JobConstants.STATE_RUNNING);
       
       // sync elapsed time to current time
       syncTime((int)((new Date()).getTime() * 0.001));
@@ -269,6 +277,7 @@ public class JobItem extends Composite implements JobItemView
    @UiField ProgressBar progress_;
    @UiField Image select_;
    @UiField Image spinner_;
+   @UiField(provided=true) ToolbarButton rerun_;
    @UiField Label elapsed_;
    @UiField Label name_;
    @UiField Label status_;

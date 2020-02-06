@@ -103,6 +103,14 @@
         animation: spinner 2s linear infinite;
     }
 
+    .rerun
+    {
+        width: 12px;
+        height: 12px;
+        border: 0px;
+        display: inline-block;
+    }
+
     .outer
     {
         width: 100%;
@@ -156,7 +164,10 @@
                 <g:VerticalPanel styleName="{styles_.item}">
                     <g:HorizontalPanel styleName="{styles_.metadata}">
                         <g:cell horizontalAlignment="ALIGN_LEFT" verticalAlignment="ALIGN_MIDDLE" width="20px">
-                            <rw:DecorativeImage styleName="{styles_.spinner}" ui:field="spinner_"></rw:DecorativeImage>
+                            <g:FlowPanel>
+                               <rw:DecorativeImage styleName="{styles_.spinner}" ui:field="spinner_"></rw:DecorativeImage>
+                               <rw:ToolbarButton styleName="{styles_.rerun}" ui:field="rerun_"></rw:ToolbarButton>
+                            </g:FlowPanel>
                         </g:cell>
                         <g:cell horizontalAlignment="ALIGN_LEFT" verticalAlignment="ALIGN_MIDDLE" width="30%">
                             <g:Label ui:field="name_" styleName="{styles_.name}"></g:Label>
