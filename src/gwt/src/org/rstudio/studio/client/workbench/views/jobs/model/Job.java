@@ -73,4 +73,17 @@ public class Job
 
    // the job's tags
    public JsArrayString tags;
+
+   // the job's script
+   public String rScript;
+
+   // the directory the job is running in (if specified)
+   public String workingDirectory;
+
+   // whether the job uses a copy of the global environment
+   public boolean copyGlobalEnv;
+
+   // should the results not be copied, be copied to the global env,
+   // or be copied to a results object in the global env
+   public String copyJobResults;
 }

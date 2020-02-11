@@ -57,23 +57,30 @@ bool lookupJob(SEXP jobSEXP, boost::shared_ptr<Job> *pJob)
 }
 
 SEXP rs_addJob(SEXP nameSEXP, SEXP statusSEXP, SEXP progressUnitsSEXP, SEXP actionsSEXP,
-      SEXP runningSEXP, SEXP autoRemoveSEXP, SEXP groupSEXP, SEXP showSEXP, SEXP launcherJobSEXP, SEXP tagsSEXP)
+      SEXP runningSEXP, SEXP autoRemoveSEXP, SEXP copyGlobalEnvSEXP, SEXP groupSEXP,
+      SEXP rScriptSEXP, SEXP workingDirectorySEXP, SEXP copyJobResultsSEXP, SEXP showSEXP,
+      SEXP launcherJobSEXP, SEXP tagsSEXP)
 {
    // convert to native types
-   std::string name   = r::sexp::safeAsString(nameSEXP, "");
-   std::string status = r::sexp::safeAsString(statusSEXP, "");
-   std::string group  = r::sexp::safeAsString(groupSEXP, "");
-   int progress       = r::sexp::asInteger(progressUnitsSEXP);
-   JobState state     = r::sexp::asLogical(runningSEXP) ? JobRunning : JobIdle;
-   JobType type       = r::sexp::asLogical(launcherJobSEXP) ? JobTypeLauncher : JobTypeSession;
-   bool autoRemove    = r::sexp::asLogical(autoRemoveSEXP);
-   bool show          = r::sexp::asLogical(showSEXP);
+   std::string name              = r::sexp::safeAsString(nameSEXP, "");
+   std::string status            = r::sexp::safeAsString(statusSEXP, "");
+   std::string group             = r::sexp::safeAsString(groupSEXP, "");
+   std::string rScript           = r::sexp::safeAsString(rScriptSEXP, "");
+   std::string workingDirectory  = r::sexp::safeAsString(workingDirectorySEXP, "");
+   std::string copyJobResults    = r::sexp::safeAsString(copyJobResultsSEXP, "");
+   int progress            = r::sexp::asInteger(progressUnitsSEXP);
+   JobState state          = r::sexp::asLogical(runningSEXP) ? JobRunning : JobIdle;
+   JobType type            = r::sexp::asLogical(launcherJobSEXP) ? JobTypeLauncher : JobTypeSession;
+   bool autoRemove         = r::sexp::asLogical(autoRemoveSEXP);
+   bool copyGlobalEnv      = r::sexp::asLogical(copyGlobalEnvSEXP);
+   bool show               = r::sexp::asLogical(showSEXP);
    std::vector<std::string> tags;
    r::sexp::fillVectorString(tagsSEXP, &tags);
 
    // add the job
    boost::shared_ptr<Job> pJob =  
-      addJob(name, status, group, progress, state, type, autoRemove, actionsSEXP, show, tags);
+      addJob(name, status, group, rScript, workingDirectory, copyJobResults, progress, state, type,
+             autoRemove, copyGlobalEnv, actionsSEXP, show, tags);
 
    // return job id
    r::sexp::Protect protect;

@@ -236,10 +236,23 @@ public class JobItem extends Composite implements JobItemView
       }
       
       // show spinner if actively executing
-      spinner_.setVisible(job.state == JobConstants.STATE_RUNNING);
+      //spinner_.setVisible(job.state == JobConstants.STATE_RUNNING);
+      if (job.state != JobConstants.STATE_RUNNING)
+      {
+        spinner_.setResource(new ImageResource2x(RESOURCES.jobRerun()));
+        spinner_.addStyleName(styles_.rerun());
+        spinner_.removeStyleName(styles_.spinner());
+      }
+      else
+      {
+        spinner_.setResource(new ImageResource2x(RESOURCES.jobSpinner()));
+        spinner_.addStyleName(styles_.spinner());
+        spinner_.removeStyleName(styles_.rerun());
+      }
 
       // show rerun if not actively executing
-      rerun_.setVisible(job.state != JobConstants.STATE_RUNNING);
+      //rerun_.setVisible(job.state != JobConstants.STATE_RUNNING);
+      rerun_.setVisible(false);
       
       // sync elapsed time to current time
       syncTime((int)((new Date()).getTime() * 0.001));
