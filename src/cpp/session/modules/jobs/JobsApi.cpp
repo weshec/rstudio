@@ -83,12 +83,12 @@ boost::shared_ptr<Job> addJob(
       const std::string& group,
       const std::string& rScript,
       const std::string& workingDirectory,
-      const std::string& copyJobResults,
+      const std::string& importEnv,
+      const std::string& exportEnv,
       int progress,
       JobState state,
       JobType type,
       bool autoRemove,
-      bool copyGlobalEnv,
       SEXP actions,
       bool show,
       std::vector<std::string> tags)
@@ -103,9 +103,10 @@ boost::shared_ptr<Job> addJob(
          ::time(0), /*recorded*/
          0, /*started*/
          0, /*completed*/
-         name, status, group, rScript, workingDirectory, copyJobResults, progress, state, type,
+         name, status, group, rScript, workingDirectory,
+         importEnv, exportEnv, progress, state, type,
          "" /*cluster*/,
-         autoRemove, copyGlobalEnv, actions, show,
+         autoRemove, actions, show,
          true, /*saveOutput*/ 
          tags);
 }
@@ -120,13 +121,13 @@ boost::shared_ptr<Job> addJob(
       const std::string& group,
       const std::string& rScript,
       const std::string& workingDirectory,
-      const std::string& copyJobResults,
+      const std::string& importEnv,
+      const std::string& exportEnv,
       int progress,
       JobState state,
       JobType type,
       const std::string& cluster,
       bool autoRemove,
-      bool copyGlobalEnv,
       SEXP actions,
       bool show,
       bool saveOutput,
@@ -135,8 +136,8 @@ boost::shared_ptr<Job> addJob(
    // create the job!
    boost::shared_ptr<Job> pJob = boost::make_shared<Job>(
          id, recorded, started, completed, name, status, group, rScript, workingDirectory,
-         copyJobResults, 0 /* completed units */, progress, state, type, cluster, autoRemove,
-         copyGlobalEnv, actions, show, saveOutput, tags);
+         importEnv, exportEnv, 0 /* completed units */, progress, state, type, cluster,
+         autoRemove, actions, show, saveOutput, tags);
 
    // cache job and notify client
    s_jobs[id] = pJob;

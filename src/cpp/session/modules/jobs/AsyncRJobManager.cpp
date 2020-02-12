@@ -40,6 +40,19 @@ AsyncRJob::AsyncRJob(const std::string& name):
 {
 }
 
+AsyncRJob::AsyncRJob(const std::string& name, const std::string& path,
+                     const std::string& workingDirectory, const std::string& importEnv,
+                     const std::string& exportEnv):
+   completed_(false),
+   cancelled_(false),
+   name_(name),
+   path_(path),
+   workingDirectory_(workingDirectory),
+   importEnv_(importEnv),
+   exportEnv_(exportEnv)
+{
+}
+
 void AsyncRJob::registerJob()
 {
    Error error;
@@ -52,8 +65,8 @@ void AsyncRJob::registerJob()
       LOG_ERROR(error);
 
    // add the job -- currently idle until we get some content from it
-   job_ = addJob(name_, "", "", "", "", "",
-                 0, JobIdle, JobTypeSession, false, false, actions, true, {});
+   job_ = addJob(name_, "", "", path_, workingDirectory_, importEnv_, exportEnv_,
+                 0, JobIdle, JobTypeSession, false, actions, true, {});
 }
 
 void AsyncRJob::onStderr(const std::string& output)

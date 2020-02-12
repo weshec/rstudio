@@ -62,14 +62,14 @@ public:
        const std::string& group,
        const std::string& rScript,
        const std::string& workingDirecotry,
-       const std::string& copyJobResults,
+       const std::string& importEnv,
+       const std::string& exportEnv,
        int progress, 
        int max,
        JobState state,
        JobType type,
        const std::string& cluster,
        bool autoRemove,
-       bool copyGlobalEnv,
        SEXP actions,
        bool show,
        bool saveOutput,
@@ -93,8 +93,11 @@ public:
    // directory job is running in
    std::string workingDirectory() const;
 
-   // if and how results are being sent to user
-   std::string copyJobResults() const;
+   // origin of parameters
+   std::string importEnv() const;
+
+   // how results are being sent
+   std::string exportEnv() const;
 
    // the number of progress units that have been completed so far
    int progress() const;
@@ -120,9 +123,6 @@ public:
 
    // whether the job should be cleaned up automatically when complete
    bool autoRemove() const;
-
-   // whether we are copying global environment
-   bool copyGlobalEnv() const;
 
    // whether the client is listening to the job
    void setListening(bool listening);
@@ -171,7 +171,8 @@ private:
    std::string group_;
    std::string rScript_;
    std::string workingDirectory_;
-   std::string copyJobResults_;
+   std::string importEnv_;
+   std::string exportEnv_;
 
    JobState state_;
    JobType type_;
@@ -185,7 +186,6 @@ private:
    time_t completed_;  // when the job completed executing
 
    bool autoRemove_;
-   bool copyGlobalEnv_;
    bool listening_;
    bool saveOutput_;
    bool show_;

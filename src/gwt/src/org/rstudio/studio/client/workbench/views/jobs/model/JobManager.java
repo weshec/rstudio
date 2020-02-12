@@ -40,6 +40,7 @@ import org.rstudio.studio.client.workbench.views.jobs.events.JobExecuteActionEve
 import org.rstudio.studio.client.workbench.views.jobs.events.JobInitEvent;
 import org.rstudio.studio.client.workbench.views.jobs.events.JobProgressEvent;
 import org.rstudio.studio.client.workbench.views.jobs.events.JobRefreshEvent;
+import org.rstudio.studio.client.workbench.views.jobs.events.JobRerunEvent;
 import org.rstudio.studio.client.workbench.views.jobs.events.JobRunScriptEvent;
 import org.rstudio.studio.client.workbench.views.jobs.events.JobRunSelectionEvent;
 import org.rstudio.studio.client.workbench.views.jobs.events.JobUpdatedEvent;
@@ -59,6 +60,7 @@ public class JobManager implements JobRefreshEvent.Handler,
                                    JobRunScriptEvent.Handler,
                                    JobRunSelectionEvent.Handler,
                                    JobExecuteActionEvent.Handler,
+                                   JobRerunEvent.Handler,
                                    SessionInitHandler
 {
    interface Binder extends CommandBinder<Commands, JobManager>
@@ -89,6 +91,7 @@ public class JobManager implements JobRefreshEvent.Handler,
       events.addHandler(JobRunScriptEvent.TYPE, this);
       events.addHandler(JobRunSelectionEvent.TYPE, this);
       events.addHandler(JobExecuteActionEvent.TYPE, this);
+      events.addHandler(JobRerunEvent.TYPE, this);
    }
    
    // Event handlers ---------------------------------------------------------
@@ -161,6 +164,25 @@ public class JobManager implements JobRefreshEvent.Handler,
             new VoidServerRequestCallback());
    }
 
+   @Override
+   public void onJobRerun(JobRerunEvent event)
+   {
+      Job job = event.job();
+      // !!! need to add encoding
+      JobLaunchSpec spec = JobLaunchSpec.create(job.name,
+                                                job.rScript,
+                                                "unknown",
+                                                job.workingDirectory,
+                                                job.copyGlobalEnv,
+                                                job.copyJobResults);
+      server_.startJob(spec, new ServerRequestCallback<String>() {
+         @Override
+         public void onError(ServerError error)
+         {
+            Debug.logError(error);
+         }
+      });
+   }
    // Command handlers -------------------------------------------------------
    
    @Handler

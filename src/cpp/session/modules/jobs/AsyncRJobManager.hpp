@@ -38,6 +38,11 @@ class AsyncRJob : public async_r::AsyncRProcess
 {
 public:
    AsyncRJob(const std::string& name);
+   AsyncRJob(const std::string& name,
+             const std::string& path,
+             const std::string& workingDirectory,
+             const std::string& importEnv,
+             const std::string& exportEnv);
 
    // The ID of the underlying job; only valid after registration
    std::string id();
@@ -68,6 +73,10 @@ protected:
 
    boost::function<void()> onComplete_;
    std::string name_;
+   std::string path_;
+   std::string workingDirectory_;
+   std::string importEnv_;
+   std::string exportEnv_;
 };
 
 // Registers an asynchronous R job and returns the ID (which can be used later to stop the job)

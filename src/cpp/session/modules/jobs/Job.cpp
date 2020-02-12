@@ -62,14 +62,14 @@ Job::Job(const std::string& id,
          const std::string& group,
          const std::string& rScript,
          const std::string& workingDirectory,
-         const std::string& copyJobResults,
+         const std::string& importEnv,
+         const std::string& exportEnv,
          int progress, 
          int max,
          JobState state,
          JobType type,
          const std::string& cluster,
          bool autoRemove,
-         bool copyGlobalEnv,
          SEXP actions,
          bool show,
          bool saveOutput,
@@ -80,7 +80,8 @@ Job::Job(const std::string& id,
    group_(group),
    rScript_(rScript),
    workingDirectory_(workingDirectory),
-   copyJobResults_(copyJobResults),
+   importEnv_(importEnv),
+   exportEnv_(exportEnv),
    state_(JobIdle),
    type_(type),
    cluster_(cluster),
@@ -90,7 +91,6 @@ Job::Job(const std::string& id,
    started_(started),
    completed_(completed),
    autoRemove_(autoRemove),
-   copyGlobalEnv_(copyGlobalEnv),
    listening_(false),
    saveOutput_(saveOutput),
    show_(show),
@@ -109,7 +109,6 @@ Job::Job():
    started_(0),
    completed_(0),
    autoRemove_(true),
-   copyGlobalEnv_(false),
    listening_(false),
    saveOutput_(true),
    show_(true),
@@ -147,9 +146,14 @@ std::string Job::workingDirectory() const
    return workingDirectory_;
 }
 
-std::string Job::copyJobResults() const
+std::string Job::importEnv() const
 {
-   return copyJobResults_;
+   return importEnv_;
+}
+
+std::string Job::exportEnv() const
+{
+   return exportEnv_;
 }
 
 int Job::progress() const
@@ -350,11 +354,6 @@ bool Job::completedState(JobState state)
 bool Job::autoRemove() const
 {
    return autoRemove_;
-}
-
-bool Job::copyGlobalEnv() const
-{
-   return copyGlobalEnv_;
 }
 
 time_t Job::recorded() const

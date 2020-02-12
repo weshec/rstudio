@@ -1,7 +1,7 @@
 /*
  * JobItem.java
  *
- * Copyright (C) 2009-19 by RStudio, PBC
+ * Copyright (C) 2009-20 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -29,6 +29,7 @@ import org.rstudio.studio.client.application.events.FireEvents;
 import org.rstudio.studio.client.workbench.prefs.model.UserPrefs;
 import org.rstudio.studio.client.workbench.prefs.model.UserPrefsSubset;
 import org.rstudio.studio.client.workbench.views.jobs.events.JobExecuteActionEvent;
+import org.rstudio.studio.client.workbench.views.jobs.events.JobRerunEvent;
 import org.rstudio.studio.client.workbench.views.jobs.events.JobSelectionEvent;
 import org.rstudio.studio.client.workbench.views.jobs.model.Job;
 import org.rstudio.studio.client.workbench.views.jobs.model.JobConstants;
@@ -104,11 +105,13 @@ public class JobItem extends Composite implements JobItemView
    public JobItem(@Assisted Job job, FireEvents eventBus, Preferences prefs)
    {
       eventBus_ = eventBus;
-      rerun_ = new ToolbarButton(ToolbarButton.NoText, "Rerun job", new ImageResource2x(RESOURCES.jobRerun()), evet ->
+      rerun_ = new ToolbarButton(ToolbarButton.NoText, "Rerun job",
+                                 new ImageResource2x(RESOURCES.jobRerun()), evt ->
       {
-         eventBus_.fireEvent(new JobExecuteActionEvent(job.id, JobConstants.ACTION_STOP));
+         eventBus_.fireEvent(new JobRerunEvent(job));
       });
-      stop_ = new ToolbarButton(ToolbarButton.NoText, "Stop job", new ImageResource2x(RESOURCES.jobCancel()), evt ->
+      stop_ = new ToolbarButton(ToolbarButton.NoText, "Stop job",
+                                new ImageResource2x(RESOURCES.jobCancel()), evt ->
       {
          eventBus_.fireEvent(new JobExecuteActionEvent(job.id, JobConstants.ACTION_STOP));
       });
@@ -251,8 +254,7 @@ public class JobItem extends Composite implements JobItemView
       }
 
       // show rerun if not actively executing
-      //rerun_.setVisible(job.state != JobConstants.STATE_RUNNING);
-      rerun_.setVisible(false);
+      rerun_.setVisible(job.state != JobConstants.STATE_RUNNING);
       
       // sync elapsed time to current time
       syncTime((int)((new Date()).getTime() * 0.001));
