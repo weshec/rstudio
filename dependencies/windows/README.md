@@ -13,7 +13,7 @@ Bootstrap
 
 Install Qt SDK
 =============================================================================
-Install Qt 5.12.6 SDK for Windows from https://qt.io, selecting 
+Install Qt 5.12.7 SDK for Windows from https://qt.io, selecting 
 following components:
 
 - MSVC 2017 64-bit
