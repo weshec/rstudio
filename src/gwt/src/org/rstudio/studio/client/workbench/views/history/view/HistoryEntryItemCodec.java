@@ -61,6 +61,7 @@ public class HistoryEntryItemCodec extends HeaderBreaksItemCodec<HistoryEntry, S
 
       td.appendChild(div);
       tr.appendChild(td);
+      DomUtils.addCopyHook(td);
       TableCellElement tdDiscButton = maybeCreateDisclosureButton(entry);
       if (tdDiscButton != null)
          tr.appendChild(tdDiscButton);

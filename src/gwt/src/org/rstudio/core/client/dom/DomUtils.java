@@ -1008,6 +1008,14 @@ public class DomUtils
       document.body.removeChild(copyElem);
    }-*/;
    
+   public static final native void addCopyHook(Element element) /*-{
+        var event = function() {
+           selection = element.getInnerText();
+           $wnd.clipboardData.setData('text/plain', selection.toString());
+        };
+        element.addEventListener('copy', event, false);
+   }-*/;
+
    public static final String extractCssValue(String className, 
          String propertyName)
    {
