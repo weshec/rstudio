@@ -325,6 +325,7 @@ public abstract class
    // History
    public abstract AppCommand historySendToSource();
    public abstract AppCommand historySendToConsole();
+   public abstract AppCommand historyCopy();
    public abstract AppCommand searchHistory();
    public abstract AppCommand loadHistory();
    public abstract AppCommand saveHistory();

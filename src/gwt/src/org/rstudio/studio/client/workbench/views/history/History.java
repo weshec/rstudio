@@ -28,6 +28,7 @@ import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.user.client.Command;
 import com.google.inject.Inject;
 
+import org.rstudio.core.client.dom.DomUtils;
 import org.rstudio.core.client.StringUtil;
 import org.rstudio.core.client.TimeBufferedCommand;
 import org.rstudio.core.client.command.CommandBinder;
@@ -447,6 +448,13 @@ public class History extends BasePresenter implements SelectionCommitHandler<Voi
          events_.fireEvent(new InsertSourceEvent(commandString, true));
    }
    
+   @Handler
+   void onHistoryCopy()
+   {
+      String commandString = getSelectedCommands();
+      if (commandString.length() > 0)
+         DomUtils.copyCodeToClipboard(commandString);
+   }
    void onSearchHistory()
    {
       globalDisplay_.showErrorMessage("Message", "onSearchHistory");

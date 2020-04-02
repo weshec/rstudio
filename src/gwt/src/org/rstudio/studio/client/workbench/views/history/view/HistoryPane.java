@@ -362,12 +362,24 @@ public class HistoryPane extends WorkbenchPane
             if (doubleClick_.checkForDoubleClick(event.getNativeEvent()))
             {
                if (event.getNativeEvent().getShiftKey())
-                  commands_.historySendToSource().execute();
+                  commands_.historyCopy().execute();
                else
                   commands_.historySendToConsole().execute();
             }
+            else
+            {
+            }
          }
          private final DoubleClickState doubleClick_ = new DoubleClickState();
+      });
+      table.addKeyUpHandler(new KeyUpHandler() {
+         public void onKeyUp(KeyUpEvent event)
+         {
+            boolean modifier = event.getNativeEvent().getCtrlKey() ||
+                               event.getNativeEvent().getMetaKey();
+            if (modifier && event.getNativeKeyCode() == KeyCodes.KEY_C)
+               commands_.historyCopy().execute();
+         }
       });
 
       return table;
@@ -588,6 +600,8 @@ public class HistoryPane extends WorkbenchPane
                
                if (event.isShiftKeyDown())
                   commands_.historySendToSource().execute();
+               else if (event.getNativeEvent().getCtrlKey())
+                  commands_.historyCopy().execute();
                else
                   commands_.historySendToConsole().execute();
             }

@@ -2486,7 +2486,13 @@ well as menu structures (for main menu and popup menus).
         buttonLabel="To Console"
         desc="Send the selected commands to the R console (Enter)"
         rebindable="false"/>
-        
+
+   <cmd id="historyCopy"
+        menuLabel="Copy History"
+        button="To Copy"
+        desc="Send the selected commands to clipboard"
+        rebindable="false"/>
+
    <cmd id="searchHistory"
         menuLabel="Search History"
         buttonLabel=""
