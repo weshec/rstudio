@@ -1,7 +1,7 @@
 /*
  * FormProxy.hpp
  *
- * Copyright (C) 2019 by RStudio, PBC
+ * Copyright (C) 2019-20 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -22,6 +22,8 @@
 #include <core/http/AsyncConnection.hpp>
 #include <core/http/AsyncClient.hpp>
 
+#include <gsl/gsl>
+
 namespace rstudio {
 namespace core {
 namespace http {
@@ -38,7 +40,7 @@ public:
    void initialize();
 
 private:
-   constexpr static uint64_t defaultMaxBufferSize = 1024*1024*1.5; // 1.5 MB
+   constexpr static uint64_t defaultMaxBufferSize =  gsl::narrow_cast<uint64_t>(1024*1024*1.5); // 1.5 MB
 
    void writeData();
    void onDownstreamConnected();

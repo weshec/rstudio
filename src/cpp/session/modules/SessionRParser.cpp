@@ -1,7 +1,7 @@
 /*
  * SessionRParser.cpp
  *
- * Copyright (C) 2009-2019 by RStudio, PBC
+ * Copyright (C) 2009-20 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -44,6 +44,8 @@
 
 #include <boost/container/flat_set.hpp>
 #include <boost/bind.hpp>
+
+#include <gsl/gsl>
 
 namespace rstudio {
 namespace session {
@@ -929,7 +931,8 @@ void handleString(RTokenCursor& cursor,
       boost::sregex_token_iterator it(value.begin(), value.end(), re, 1);
       boost::sregex_token_iterator end;
       for (; it != end; ++it)
-         status.node()->addReferencedSymbol(cursor.row(), cursor.column(), *it);
+         status.node()->addReferencedSymbol(gsl::narrow_cast<int>(cursor.row()),
+                                            gsl::narrow_cast<int>(cursor.column()), *it);
    }
 }
 

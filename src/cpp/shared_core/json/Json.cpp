@@ -24,6 +24,7 @@
 #include <shared_core/json/Json.hpp>
 
 #include <sstream>
+#include <gsl/gsl>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/regex.hpp>
@@ -405,7 +406,7 @@ Error Value::coerce(const std::string& in_schema,
    if (result.IsError())
    {
       error = Error(result.Code(), ERROR_LOCATION);
-      error.addProperty("offset", result.Offset());
+      error.addProperty("offset", gsl::narrow_cast<int>(result.Offset()));
       return error;
    }
 
@@ -700,7 +701,7 @@ Error Value::setValueAtPointerPath(const std::string& in_pointerPath, const json
    if (!pointer.IsValid())
    {
       Error error(pointer.GetParseErrorCode(), ERROR_LOCATION);
-      error.addProperty("offset", pointer.GetParseErrorOffset());
+      error.addProperty("offset", gsl::narrow_cast<int>(pointer.GetParseErrorOffset()));
       return error;
    }
 
@@ -773,7 +774,7 @@ Error Value::validate(const std::string& in_schema) const
    if (result.IsError())
    {
       error = Error(result.Code(), ERROR_LOCATION);
-      error.addProperty("offset", result.Offset());
+      error.addProperty("offset", gsl::narrow_cast<int>(result.Offset()));
       return error;
    }
 
@@ -1357,7 +1358,8 @@ Array& Array::operator=(Array&& in_other) noexcept
 
 Value Array::operator[](size_t in_index) const
 {
-   JsonDocument& docRef = static_cast<JsonDocument&>((*m_impl->Document)[in_index]);
+   JsonDocument& docRef =
+      static_cast<JsonDocument&>((*m_impl->Document)[gsl::narrow_cast<rapidjson::SizeType>(in_index)]);
    std::shared_ptr<JsonDocument> docPtr(m_impl->Document, &docRef);
 
    return Value(ValueImplPtr(new Impl(docPtr)));
