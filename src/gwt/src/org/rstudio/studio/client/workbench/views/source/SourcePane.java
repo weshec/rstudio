@@ -47,7 +47,7 @@ import org.rstudio.studio.client.workbench.views.source.Source.Display;
 import org.rstudio.studio.client.workbench.views.source.events.*;
 import java.util.ArrayList;
 
-public class SourcePane extends Composite implements Display,
+public class SourcePane extends LazyPanel implements Display,
                                                      HasEnsureVisibleHandlers,
                                                      HasEnsureHeightHandlers,
                                                      RequiresResize,
@@ -69,6 +69,13 @@ public class SourcePane extends Composite implements Display,
       events_.addHandler(MaximizeSourceWindowEvent.TYPE, this);
       events_.addHandler(EnsureVisibleSourceWindowEvent.TYPE, this);
 
+      setVisible(true);
+      ensureWidget();
+   }
+
+   @Override
+   protected Widget createWidget()
+   {
       final int UTILITY_AREA_SIZE = 74;
 
       panel_ = new LayoutPanel();
@@ -76,6 +83,7 @@ public class SourcePane extends Composite implements Display,
       new AutoGlassAttacher(panel_);
 
       tabPanel_ =  new DocTabLayoutPanel(true, 65, UTILITY_AREA_SIZE);
+      panel_.setSize("100%", "100%");
       panel_.add(tabPanel_);
       panel_.setWidgetTopBottom(tabPanel_, 0, Unit.PX, 0, Unit.PX);
       panel_.setWidgetLeftRight(tabPanel_, 0, Unit.PX, 0, Unit.PX);
@@ -109,7 +117,7 @@ public class SourcePane extends Composite implements Display,
                                  52, Unit.PX,
                                  chevron_.getWidth(), Unit.PX);
       
-      initWidget(panel_);
+      return panel_;
    }
 
    @Override
@@ -117,6 +125,10 @@ public class SourcePane extends Composite implements Display,
    {
       super.onLoad();
       Scheduler.get().scheduleDeferred(() -> onResize());
+   }
+
+   protected void onUnload()
+   {
    }
 
    public void addTab(Widget widget,
@@ -171,7 +183,7 @@ public class SourcePane extends Composite implements Display,
 
    public void ensureVisible()
    {
-      events_.fireEvent(new EnsureVisibleEvent());
+      events_.fireEvent(new EnsureVisibleEvent(true));
    }
 
    public void renameTab(Widget child,
@@ -256,6 +268,7 @@ public class SourcePane extends Composite implements Display,
 
    public Widget asWidget()
    {
+      ensureVisible();
       return this;
    }
 
@@ -326,6 +339,9 @@ public class SourcePane extends Composite implements Display,
 
    public void onBeforeShow()
    {
+      for (Widget w : panel_)
+         if (w instanceof BeforeShowCallback)
+            ((BeforeShowCallback)w).onBeforeShow();
       events_.fireEvent(new BeforeShowEvent());
    }
 

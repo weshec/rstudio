@@ -281,8 +281,15 @@ public class Source implements InsertSourceHandler,
          new ArrayList<Display>();
       }
 
+      public void setActiveDisplay(Display display)
+      {
+         activeDisplay_ = display;
+      }
+
       public Display getActiveDisplay()
       {
+         if (activeDisplay_ != null)
+            return activeDisplay_;
          if (activeEditor_ != null)
             return getDisplayByEditor(activeEditor_);
          return this.get(0);
@@ -322,6 +329,8 @@ public class Source implements InsertSourceHandler,
          for (Display view : this)
             view.manageChevronVisibility();
       }
+
+      Display activeDisplay_;
    }
 
    @Inject
@@ -799,7 +808,7 @@ public class Source implements InsertSourceHandler,
       
       // add vim commands
       initVimCommands();
-      ensureVisible(true);
+      ensureVisible(false);
    }
    
    public void withSaveFilesBeforeCommand(final Command command,
@@ -1014,14 +1023,17 @@ public class Source implements InsertSourceHandler,
     */
    private void ensureVisible(boolean isNewTabPending)
    {
-      newTabPending_++;
-      try
+      for (Display view : views_)
       {
-         views_.getActiveDisplay().ensureVisible();
-      }
-      finally
-      {
-         newTabPending_--;
+         newTabPending_++;
+         try
+         {
+            view.ensureVisible();
+         }
+         finally
+         {
+            newTabPending_--;
+         }
       }
    }
 
@@ -1337,7 +1349,7 @@ public class Source implements InsertSourceHandler,
    {
       newDoc(FileTypeRegistry.R, null);
    }
-   
+
    @Handler
    public void onNewTextDoc()
    {
@@ -2786,11 +2798,9 @@ public class Source implements InsertSourceHandler,
       Source.Display display = GWT.create(SourcePane.class);
       display.ensureVisible();
       views_.add(display);
-   }
-
-   public void addView(Display view)
-   {
-      views_.add(view);
+      views_.setActiveDisplay(display);
+      onNewSourceDoc();
+      ensureVisible(false);
    }
 
    public Display getActiveView()

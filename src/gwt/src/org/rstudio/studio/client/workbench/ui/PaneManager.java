@@ -272,6 +272,18 @@ public class PaneManager
       binder.bind(commands, this);
       source_.loadFullSource();
       
+      ArrayList<Widget> mylist = new ArrayList<Widget>();
+      //for (int i = 0; i < 3; i++)
+         source_.addDisplay();
+
+      int counter = 0;
+      for (Source.Display display : source_.getViews())
+      {
+         //if (counter <= 0)
+         mylist.add(display.asWidget());
+         counter++;
+      }
+
       PaneConfig config = validateConfig(userPrefs.panes().getValue().cast());
       initPanes(config);
 
@@ -281,22 +293,6 @@ public class PaneManager
       left_ = createSplitWindow(panes_.get(0), panes_.get(1), LEFT_COLUMN, 0.4, splitterSize);
       right_ = createSplitWindow(panes_.get(2), panes_.get(3), RIGHT_COLUMN, 0.6, splitterSize);
 
-
-      ArrayList<Widget> mylist = new ArrayList<Widget>();
-      /*
-      for (int i = 0; i < 3; i++)
-      {
-         source_.addDisplay();
-      }
-
-      int counter = 0;
-      for (Source.Display display : source_.getViews())
-      {
-         //if (counter <= 0)
-         mylist.add(display.asWidget());
-         counter++;
-      }
-      */
 
       panel_ = pSplitPanel.get();
       panel_.initialize(mylist, left_, right_);
@@ -315,6 +311,7 @@ public class PaneManager
          }
       }
       
+      /* !!! need to update this to handle the list
       if (numDocs == 0 && sourceLogicalWindow_.getState() != WindowState.HIDE)
       {
          sourceLogicalWindow_.onWindowStateChange(
@@ -326,6 +323,7 @@ public class PaneManager
          sourceLogicalWindow_.onWindowStateChange(
                new WindowStateChangeEvent(WindowState.NORMAL));
       }
+      */
 
       userPrefs.panes().addValueChangeHandler(evt ->
       {
@@ -817,8 +815,11 @@ public class PaneManager
       panesByName_.put("Source", createSource());
       for (int i = 0; i < source_.getViews().size(); i++)
       {
-         String frameName = "Source " + Integer.toString(i);
-         panesByName_.put(frameName, createSource(frameName, source_.getViewByIndex(i)));
+         if (source_.getViewByIndex(i) != source_.getActiveView())
+         {
+            String frameName = "Source " + Integer.toString(i);
+            panesByName_.put(frameName, createSource(frameName, source_.getViewByIndex(i)));
+         }
       }
 
       Triad<LogicalWindow, WorkbenchTabPanel, MinimizedModuleTabLayoutPanel> ts1 = createTabSet(
@@ -1116,7 +1117,7 @@ public class PaneManager
 
    public LogicalWindow getSourceLogicalWindow()
    {
-      return sourceLogicalWindow_;
+      return sourceLogicalWindows_.get(0);
    }
    
    public LogicalWindow getConsoleLogicalWindow()
@@ -1183,20 +1184,23 @@ public class PaneManager
       WindowFrame sourceFrame = new WindowFrame(frameName);
       sourceFrame.setFillWidget(source_.asWidget());
       source_.forceLoad();
-      return sourceLogicalWindow_ = new LogicalWindow(
+      LogicalWindow sourceWindow = new LogicalWindow(
             sourceFrame,
             new MinimizedWindowFrame(frameName, frameName));
+      sourceLogicalWindows_.add(sourceWindow);
+      return sourceWindow;
    }
 
    private LogicalWindow createSource(String frameName, Source.Display display)
    {
       WindowFrame sourceFrame = new WindowFrame(frameName);
       sourceFrame.setFillWidget(source_.asWidget(display));
-      sourceFrame.setFillWidget(source_.asWidget(display));
       source_.forceLoad();
-      return sourceLogicalWindow_ = new LogicalWindow(
+      LogicalWindow sourceWindow = new LogicalWindow(
             sourceFrame,
             new MinimizedWindowFrame(frameName, frameName));
+      sourceLogicalWindows_.add(sourceWindow);
+      return sourceWindow;
    }
 
    private
@@ -1457,7 +1461,7 @@ public class PaneManager
    private final WorkbenchTab tutorialTab_;
    private final OptionsLoader.Shim optionsLoader_;
    private final MainSplitPanel panel_;
-   private LogicalWindow sourceLogicalWindow_;
+   private ArrayList<LogicalWindow> sourceLogicalWindows_ = new ArrayList<LogicalWindow>();
    private final HashMap<Tab, WorkbenchTabPanel> tabToPanel_ = new HashMap<>();
    private final HashMap<Tab, Integer> tabToIndex_ = new HashMap<>();
    private final HashMap<WorkbenchTab, Tab> wbTabToTab_ = new HashMap<>();
