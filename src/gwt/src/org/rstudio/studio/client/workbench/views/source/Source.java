@@ -51,6 +51,7 @@ import com.google.inject.Singleton;
 
 import org.rstudio.core.client.*;
 import org.rstudio.core.client.command.AppCommand;
+import org.rstudio.core.client.command.CommandBinder;
 import org.rstudio.core.client.command.Handler;
 import org.rstudio.core.client.command.KeyCombination;
 import org.rstudio.core.client.command.KeyboardShortcut;
@@ -212,10 +213,12 @@ public class Source implements InsertSourceHandler,
                                RequestDocumentSaveEvent.Handler,
                                RequestDocumentCloseEvent.Handler,
                                EditPresentationSourceEvent.Handler,
-                               NewDocumentWithCodeEvent.Handler,
-                               MaximizeSourceWindowEvent.Handler,
-                               EnsureVisibleSourceWindowEvent.Handler
+                               NewDocumentWithCodeEvent.Handler
 {
+   interface Binder extends CommandBinder<Commands, Source>
+   {
+   }
+
    public interface Display extends IsWidget,
                                     HasTabClosingHandlers,
                                     HasTabCloseHandlers,
@@ -262,6 +265,8 @@ public class Source implements InsertSourceHandler,
       @Handler
       void onNewSourceDoc();
       HandlerRegistration addBeforeShowHandler(BeforeShowHandler handler);
+
+      public void onEnsureVisibleSourceWindow(EnsureVisibleSourceWindowEvent e);
    }
 
    public interface CPSEditingTargetCommand
@@ -321,6 +326,7 @@ public class Source implements InsertSourceHandler,
 
    @Inject
    public Source(Commands commands,
+                 Binder binder,
                  Display view,
                  SourceServerOperations server,
                  EditingTargetSource editingTargetSource,
@@ -343,6 +349,7 @@ public class Source implements InsertSourceHandler,
                  Provider<SourceWindowManager> pWindowManager)
    {
       commands_ = commands;
+      binder.bind(commands, this);
       views_.add(view);
       server_ = server;
       editingTargetSource_ = editingTargetSource;
@@ -364,7 +371,10 @@ public class Source implements InsertSourceHandler,
       dependencyManager_ = dependencyManager;
       pWindowManager_ = pWindowManager;
 
-      displayManagerList_.add(new SourceDisplayManager(new SourcePane(), view));
+//      displayManagerList_.add(
+//            new SourceDisplayManager(
+//               new SourcePane(commands, events, binder), view));
+      commands_.newSourceDoc().setEnabled(true);
 
       events.fireEvent(new DocTabsChangedEvent(null,
                                                new String[0],
@@ -372,22 +382,6 @@ public class Source implements InsertSourceHandler,
                                                new String[0],
                                                new String[0]));
       dynamicCommands_ = new HashSet<AppCommand>();
-   }
-
-   public void loadFullSource()
-   {
-      vimCommands_ = new SourceVimCommands();
-      
-      for (Display v: views_)
-      {
-         v.addTabClosingHandler(this);
-         v.addTabCloseHandler(this);
-         v.addTabClosedHandler(this);
-         v.addTabReorderHandler(this);
-         v.addSelectionHandler(this);
-         v.addBeforeShowHandler(this);
-      }
-
       dynamicCommands_.add(commands_.saveSourceDoc());
       dynamicCommands_.add(commands_.reopenSourceDocWithEncoding());
       dynamicCommands_.add(commands_.saveSourceDocAs());
@@ -486,21 +480,18 @@ public class Source implements InsertSourceHandler,
          command.setVisible(false);
          command.setEnabled(false);
       }
-
-      // fake shortcuts for commands_ which we handle at a lower level
-      commands_.goToHelp().setShortcut(new KeyboardShortcut("F1", KeyCodes.KEY_F1, KeyboardShortcut.NONE));
-      commands_.goToDefinition().setShortcut(new KeyboardShortcut("F2", KeyCodes.KEY_F2, KeyboardShortcut.NONE));
-
-      // If tab has been disabled for auto complete by the user, set the "shortcut" to ctrl-space instead.
-      if (userPrefs_.tabCompletion().getValue() && !userPrefs_.tabKeyMoveFocus().getValue())
-         commands_.codeCompletion().setShortcut(new KeyboardShortcut("Tab", KeyCodes.KEY_TAB, KeyboardShortcut.NONE));
-      else
-      {
-         KeySequence sequence = new KeySequence();
-         sequence.add(new KeyCombination("Ctrl+Space", KeyCodes.KEY_SPACE, KeyCodes.KEY_CTRL));
-         commands_.codeCompletion().setShortcut(new KeyboardShortcut(sequence));
-      }
       
+      vimCommands_ = new SourceVimCommands();
+      for (Display v: views_)
+      {
+         v.addTabClosingHandler(this);
+         v.addTabCloseHandler(this);
+         v.addTabClosedHandler(this);
+         v.addTabReorderHandler(this);
+         v.addSelectionHandler(this);
+         v.addBeforeShowHandler(this);
+      }
+
       events_.addHandler(EditPresentationSourceEvent.TYPE, this);
       events_.addHandler(FileEditEvent.TYPE, this);
       events_.addHandler(InsertSourceEvent.TYPE, this);
@@ -514,8 +505,6 @@ public class Source implements InsertSourceHandler,
       events_.addHandler(CodeBrowserHighlightEvent.TYPE, this);
       events_.addHandler(SnippetsChangedEvent.TYPE, this);
       events_.addHandler(NewDocumentWithCodeEvent.TYPE, this);
-      events_.addHandler(MaximizeSourceWindowEvent.TYPE, this);
-      events_.addHandler(EnsureVisibleSourceWindowEvent.TYPE, this);
 
       events_.addHandler(FileTypeChangedEvent.TYPE, new FileTypeChangedHandler()
       {
@@ -689,6 +678,38 @@ public class Source implements InsertSourceHandler,
       events_.addHandler(OpenProfileEvent.TYPE, this);
       events_.addHandler(RequestDocumentSaveEvent.TYPE, this);
       events_.addHandler(RequestDocumentCloseEvent.TYPE, this);
+      
+      // sync UI prefs with shortcut manager
+      if (userPrefs_.editorKeybindings().getValue() == UserPrefs.EDITOR_KEYBINDINGS_VIM)
+         ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_VIM);
+      else if (userPrefs_.editorKeybindings().getValue() == UserPrefs.EDITOR_KEYBINDINGS_EMACS)
+         ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_EMACS);
+      else if (userPrefs_.editorKeybindings().getValue() == UserPrefs.EDITOR_KEYBINDINGS_SUBLIME)
+         ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_SUBLIME);
+      else
+         ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_DEFAULT);
+      
+      initialized_ = true;
+
+      AceEditor.preload();
+   }
+
+   public void loadFullSource()
+   {
+      // fake shortcuts for commands_ which we handle at a lower level
+      commands_.goToHelp().setShortcut(new KeyboardShortcut("F1", KeyCodes.KEY_F1, KeyboardShortcut.NONE));
+      commands_.goToDefinition().setShortcut(new KeyboardShortcut("F2", KeyCodes.KEY_F2, KeyboardShortcut.NONE));
+
+      // If tab has been disabled for auto complete by the user, set the "shortcut" to ctrl-space instead.
+      if (userPrefs_.tabCompletion().getValue() && !userPrefs_.tabKeyMoveFocus().getValue())
+         commands_.codeCompletion().setShortcut(new KeyboardShortcut("Tab", KeyCodes.KEY_TAB, KeyboardShortcut.NONE));
+      else
+      {
+         KeySequence sequence = new KeySequence();
+         sequence.add(new KeyCombination("Ctrl+Space", KeyCodes.KEY_SPACE, KeyCodes.KEY_CTRL));
+         commands_.codeCompletion().setShortcut(new KeyboardShortcut(sequence));
+      }
+      
 
       // Suppress 'CTRL + ALT + SHIFT + click' to work around #2483 in Ace
       Event.addNativePreviewHandler(new NativePreviewHandler()
@@ -763,18 +784,6 @@ public class Source implements InsertSourceHandler,
       
       AceEditorNative.syncUiPrefs(userPrefs_);
       
-      // sync UI prefs with shortcut manager
-      if (userPrefs_.editorKeybindings().getValue() == UserPrefs.EDITOR_KEYBINDINGS_VIM)
-         ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_VIM);
-      else if (userPrefs_.editorKeybindings().getValue() == UserPrefs.EDITOR_KEYBINDINGS_EMACS)
-         ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_EMACS);
-      else if (userPrefs_.editorKeybindings().getValue() == UserPrefs.EDITOR_KEYBINDINGS_SUBLIME)
-         ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_SUBLIME);
-      else
-         ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_DEFAULT);
-      
-      initialized_ = true;
-
       // As tabs were added before, manageCommands() was suppressed due to
       // initialized_ being false, so we need to run it explicitly
       manageCommands();
@@ -1323,23 +1332,6 @@ public class Source implements InsertSourceHandler,
       }
    }
    
-   @Handler
-   public void onEnsureVisibleSourceWindow(EnsureVisibleSourceWindowEvent e)
-   {
-      if (getActiveView().getTabCount() > 0)
-      {
-         events_.fireEvent(new EnsureVisibleEvent());
-         events_.fireEvent(new EnsureHeightEvent(EnsureHeightEvent.NORMAL));
-      }
-   }
-
-   @Handler
-   public void onMaximizeSourceWindow(MaximizeSourceWindowEvent e)
-   {
-      events_.fireEvent(new EnsureVisibleEvent());
-      events_.fireEvent(new EnsureHeightEvent(EnsureHeightEvent.MAXIMIZED));
-   }
-
    @Handler
    public void onNewSourceDoc()
    {

@@ -14,6 +14,7 @@
  */
 package org.rstudio.studio.client.workbench.views.source;
 
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Style.Cursor;
 import com.google.gwt.dom.client.Style.Unit;
@@ -26,6 +27,7 @@ import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.*;
 import com.google.inject.Inject;
 
+import org.rstudio.core.client.command.CommandBinder;
 import org.rstudio.core.client.events.*;
 import org.rstudio.core.client.layout.RequiresVisibilityChanged;
 import org.rstudio.core.client.resources.ImageResource2x;
@@ -34,11 +36,15 @@ import org.rstudio.core.client.theme.res.ThemeResources;
 import org.rstudio.core.client.theme.res.ThemeStyles;
 import org.rstudio.core.client.widget.BeforeShowCallback;
 import org.rstudio.core.client.widget.OperationWithInput;
+import org.rstudio.studio.client.RStudioGinjector;
+import org.rstudio.studio.client.application.events.EventBus;
 import org.rstudio.studio.client.common.AutoGlassAttacher;
 import org.rstudio.studio.client.common.filetypes.FileIcon;
+import org.rstudio.studio.client.workbench.commands.Commands;
 import org.rstudio.studio.client.workbench.model.UnsavedChangesTarget;
 import org.rstudio.studio.client.workbench.ui.unsaved.UnsavedChangesDialog;
 import org.rstudio.studio.client.workbench.views.source.Source.Display;
+import org.rstudio.studio.client.workbench.views.source.events.*;
 import java.util.ArrayList;
 
 public class SourcePane extends Composite implements Display,
@@ -47,11 +53,22 @@ public class SourcePane extends Composite implements Display,
                                                      RequiresResize,
                                                      ProvidesResize,
                                                      BeforeShowCallback,
-                                                     RequiresVisibilityChanged
+                                                     RequiresVisibilityChanged,
+                                                     EnsureVisibleSourceWindowEvent.Handler,
+                                                     MaximizeSourceWindowEvent.Handler
 {
+   public interface Binder extends CommandBinder<Commands, SourcePane> {}
+
    @Inject
    public SourcePane()
-   {
+   {   
+      Commands commands = RStudioGinjector.INSTANCE.getCommands();
+      Binder binder = GWT.<Binder>create(Binder.class);
+      binder.bind(commands, this);
+      events_ = RStudioGinjector.INSTANCE.getEventBus();
+      events_.addHandler(MaximizeSourceWindowEvent.TYPE, this);
+      events_.addHandler(EnsureVisibleSourceWindowEvent.TYPE, this);
+
       final int UTILITY_AREA_SIZE = 74;
 
       panel_ = new LayoutPanel();
@@ -154,7 +171,7 @@ public class SourcePane extends Composite implements Display,
 
    public void ensureVisible()
    {
-      fireEvent(new EnsureVisibleEvent());
+      events_.fireEvent(new EnsureVisibleEvent());
    }
 
    public void renameTab(Widget child,
@@ -247,11 +264,27 @@ public class SourcePane extends Composite implements Display,
       return addHandler(handler, EnsureVisibleEvent.TYPE);
    }
    
-   @Override
    public HandlerRegistration addEnsureHeightHandler(
          EnsureHeightHandler handler)
    {
       return addHandler(handler, EnsureHeightEvent.TYPE);
+   }
+
+   @Override
+   public void onMaximizeSourceWindow(MaximizeSourceWindowEvent e)
+   {
+      events_.fireEvent(new EnsureVisibleEvent());
+      events_.fireEvent(new EnsureHeightEvent(EnsureHeightEvent.MAXIMIZED));
+   }
+
+   @Override
+   public void onEnsureVisibleSourceWindow(EnsureVisibleSourceWindowEvent e)
+   {
+      if (getTabCount() > 0)
+      {
+         events_.fireEvent(new EnsureVisibleEvent());
+         events_.fireEvent(new EnsureHeightEvent(EnsureHeightEvent.NORMAL));
+      }
    }
 
    public void onResize()
@@ -293,7 +326,7 @@ public class SourcePane extends Composite implements Display,
 
    public void onBeforeShow()
    {
-      fireEvent(new BeforeShowEvent());
+      events_.fireEvent(new BeforeShowEvent());
    }
 
    public HandlerRegistration addBeforeShowHandler(BeforeShowHandler handler)
@@ -321,4 +354,5 @@ public class SourcePane extends Composite implements Display,
    private Image chevron_;
    private LayoutPanel panel_;
    private PopupPanel tabOverflowPopup_;
+   private EventBus events_;
 }

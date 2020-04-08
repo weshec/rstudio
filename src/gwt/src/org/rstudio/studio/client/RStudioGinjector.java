@@ -303,7 +303,6 @@ public interface RStudioGinjector extends Ginjector
    void injectMembers(PanmirrorUIDisplay panmirrorUIDisplay);
    void injectMembers(TextEditingTargetVisualMode textEditingTargetVisualMode);
    void injectMembers(OpenProjectDialog dialog);
-   void injectMembers(SourcePane sourcePane);
    
    public static final RStudioGinjector INSTANCE = GWT.create(RStudioGinjector.class);
 
