@@ -812,10 +812,9 @@ public class PaneManager
    {
       panesByName_ = new HashMap<>();
       panesByName_.put("Console", createConsole());
-      panesByName_.put("Source", createSource());
+      assert source_.getViews().size() > 0;
       for (int i = 0; i < source_.getViews().size(); i++)
       {
-         if (source_.getViewByIndex(i) != source_.getActiveView())
          {
             String frameName = "Source " + Integer.toString(i);
             panesByName_.put(frameName, createSource(frameName, source_.getViewByIndex(i)));
@@ -1176,19 +1175,6 @@ public class PaneManager
       consoleTabPanel_.addLayoutStyles(frame.getElement());
       
       return logicalWindow;
-   }
-
-   private LogicalWindow createSource()
-   {
-      String frameName = "Source";
-      WindowFrame sourceFrame = new WindowFrame(frameName);
-      sourceFrame.setFillWidget(source_.asWidget());
-      source_.forceLoad();
-      LogicalWindow sourceWindow = new LogicalWindow(
-            sourceFrame,
-            new MinimizedWindowFrame(frameName, frameName));
-      sourceLogicalWindows_.add(sourceWindow);
-      return sourceWindow;
    }
 
    private LogicalWindow createSource(String frameName, Source.Display display)
