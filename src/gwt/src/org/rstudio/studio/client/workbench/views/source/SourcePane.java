@@ -22,13 +22,19 @@ import com.google.gwt.event.logical.shared.BeforeSelectionHandler;
 import com.google.gwt.event.logical.shared.CloseEvent;
 import com.google.gwt.event.logical.shared.CloseHandler;
 import com.google.gwt.event.logical.shared.SelectionHandler;
+import com.google.gwt.event.logical.shared.ValueChangeEvent;
+import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.*;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 
+import org.rstudio.core.client.ResultCallback;
 import org.rstudio.core.client.command.CommandBinder;
 import org.rstudio.core.client.events.*;
+import org.rstudio.core.client.js.JsObject;
+import org.rstudio.core.client.js.JsUtil;
 import org.rstudio.core.client.layout.RequiresVisibilityChanged;
 import org.rstudio.core.client.resources.ImageResource2x;
 import org.rstudio.core.client.theme.DocTabLayoutPanel;
@@ -36,15 +42,29 @@ import org.rstudio.core.client.theme.res.ThemeResources;
 import org.rstudio.core.client.theme.res.ThemeStyles;
 import org.rstudio.core.client.widget.BeforeShowCallback;
 import org.rstudio.core.client.widget.OperationWithInput;
+
 import org.rstudio.studio.client.RStudioGinjector;
 import org.rstudio.studio.client.application.events.EventBus;
+import org.rstudio.studio.client.server.ServerError;
+import org.rstudio.studio.client.server.ServerRequestCallback;
 import org.rstudio.studio.client.common.AutoGlassAttacher;
+import org.rstudio.studio.client.common.SimpleRequestCallback;
+import org.rstudio.studio.client.common.filetypes.EditableFileType;
 import org.rstudio.studio.client.common.filetypes.FileIcon;
+import org.rstudio.studio.client.common.filetypes.FileTypeRegistry;
+import org.rstudio.studio.client.common.filetypes.TextFileType;
 import org.rstudio.studio.client.workbench.commands.Commands;
+import org.rstudio.studio.client.workbench.model.RemoteFileSystemContext;
 import org.rstudio.studio.client.workbench.model.UnsavedChangesTarget;
 import org.rstudio.studio.client.workbench.ui.unsaved.UnsavedChangesDialog;
 import org.rstudio.studio.client.workbench.views.source.Source.Display;
+import org.rstudio.studio.client.workbench.views.source.editors.EditingTarget;
+import org.rstudio.studio.client.workbench.views.source.editors.EditingTargetSource;
+import org.rstudio.studio.client.workbench.views.source.editors.text.TextEditingTarget;
 import org.rstudio.studio.client.workbench.views.source.events.*;
+import org.rstudio.studio.client.workbench.views.source.model.SourceDocument;
+import org.rstudio.studio.client.workbench.views.source.model.SourceServerOperations;
+
 import java.util.ArrayList;
 
 public class SourcePane extends LazyPanel implements Display,
@@ -197,10 +217,37 @@ public class SourcePane extends LazyPanel implements Display,
                                tooltip);
    }
 
-   @Override
    public void onNewSourceDoc()
    {
       String breakpoint = "breakpoint";
+      //newDoc(FileTypeRegistry.R, null);
+      EditableFileType fileType = FileTypeRegistry.R;
+
+      TextFileType textType = (TextFileType)fileType;
+      source_.getServer().getSourceTemplate("",
+            "default" + textType.getDefaultExtension(),
+            new ServerRequestCallback<String>()
+            {
+               @Override
+               public void onResponseReceived(String template)
+               {
+                  // Create a new document with the supplied template
+                  newDoc(fileType, template, null);
+               }
+
+               @Override
+               public void onError(ServerError error)
+               {
+                  // Ignore errors; there's just not a template for this type
+                  newDoc(fileType, null, null);
+               }
+            });
+   }
+
+   @Override
+   public void setSource(Source source)
+   {
+      source_ = source;
    }
 
    public int getActiveTabIndex()
@@ -365,10 +412,151 @@ public class SourcePane extends LazyPanel implements Display,
       tabPanel_.cancelTabDrag();
    }
 
+   private void newDoc(EditableFileType fileType,
+                       final String contents,
+                       final ResultCallback<EditingTarget, ServerError> resultCallback)
+   {
+      ensureVisible();
+      source_.getServer().newDocument(
+            fileType.getTypeId(),
+            contents,
+            JsObject.createJsObject(),
+            new SimpleRequestCallback<SourceDocument>(
+               "Error Creating New Document")
+            {
+               @Override
+               public void onResponseReceived(SourceDocument newDoc)
+               {
+                  EditingTarget target = addTab(newDoc, OPEN_INTERACTIVE);
+
+                  if (contents != null)
+                  {
+                     target.forceSaveCommandActive();
+                     //manageSaveCommands(); !!! how will this work?
+                  }
+   
+                  if (resultCallback != null)
+                     resultCallback.onSuccess(target);
+               }
+
+               @Override
+               public void onError(ServerError error)
+               {
+                  if (resultCallback != null)
+                     resultCallback.onFailure(error);
+               }
+            });
+   }
+
+   private EditingTarget addTab(SourceDocument doc, int mode)
+   {
+      final String defaultNamePrefix = source_.getEditingTargetSource().getDefaultNamePrefix(doc);
+      final EditingTarget target = source_.getEditingTargetSource().getEditingTarget(
+            doc, source_.getFileContext(), new Provider<String>()
+            {
+               public String get()
+               {
+                  return source_.getNextDefaultName(defaultNamePrefix);
+               }
+            });
+      final Widget widget = createWidget(target);
+
+      int position = getActiveTabIndex() + 1;
+
+      // we're inserting into an existing permuted tabset -- push aside
+      // any tabs physically to the right of this tab
+      editors_.add(position, target);
+      for (int i = 0; i < tabOrder_.size(); i++)
+      {
+         int pos = tabOrder_.get(i);
+         if (pos >= position)
+            tabOrder_.set(i, pos + 1);
+      }
+
+      // add this tab in its "natural" position
+      tabOrder_.add(position, position);
+
+      addTab(widget,
+             target.getIcon(),
+             target.getId(),
+             target.getName().getValue(),
+             target.getTabTooltip(), // used as tooltip, if non-null
+             position,
+             true);
+      //fireDocTabsChanged();
+
+      target.getName().addValueChangeHandler(new ValueChangeHandler<String>()
+      {
+         public void onValueChange(ValueChangeEvent<String> event)
+         {
+            renameTab(widget,
+                      target.getIcon(),
+                      event.getValue(),
+                      target.getPath());
+            //fireDocTabsChanged();
+         }
+      });
+
+      setDirty(widget, target.dirtyState().getValue());
+      target.dirtyState().addValueChangeHandler(new ValueChangeHandler<Boolean>()
+      {
+         public void onValueChange(ValueChangeEvent<Boolean> event)
+         {
+            setDirty(widget, event.getValue());
+            //manageCommands();
+         }
+      });
+
+      target.addEnsureVisibleHandler(new EnsureVisibleHandler()
+      {
+         public void onEnsureVisible(EnsureVisibleEvent event)
+         {
+            selectTab(widget);
+         }
+      });
+
+      target.addCloseHandler(new CloseHandler<Void>()
+      {
+         public void onClose(CloseEvent<Void> voidCloseEvent)
+         {
+            closeTab(widget, false);
+         }
+      });
+
+      events_.fireEvent(new SourceDocAddedEvent(doc, mode));
+
+      if (target instanceof TextEditingTarget && doc.isReadOnly())
+      {
+         ((TextEditingTarget) target).setIntendedAsReadOnly(
+            JsUtil.toList(doc.getReadOnlyAlternatives()));
+      }
+
+      // adding a tab may enable commands that are only available when
+      // multiple documents are open; if this is the second document, go check
+      //if (editors_.size() == 2)
+      //   manageMultiTabCommands(); !!! fix this
+
+      // if the target had an editing session active, attempt to resume it
+      if (doc.getCollabParams() != null)
+         target.beginCollabSession(doc.getCollabParams());
+
+      return target;
+   }
+
+   private Widget createWidget(EditingTarget target)
+   {
+      return target.asWidget();
+   }
+
+   private Source source_;
    private DocTabLayoutPanel tabPanel_;
    private HTML utilPanel_;
    private Image chevron_;
    private LayoutPanel panel_;
    private PopupPanel tabOverflowPopup_;
    private EventBus events_;
+   ArrayList<EditingTarget> editors_ = new ArrayList<EditingTarget>();
+   ArrayList<Integer> tabOrder_ = new ArrayList<Integer>();
+
+   public final static int OPEN_INTERACTIVE = 0;
 }

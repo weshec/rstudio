@@ -264,6 +264,7 @@ public class Source implements InsertSourceHandler,
 
       @Handler
       void onNewSourceDoc();
+      void setSource(Source source);
       HandlerRegistration addBeforeShowHandler(BeforeShowHandler handler);
 
       public void onEnsureVisibleSourceWindow(EnsureVisibleSourceWindowEvent e);
@@ -359,6 +360,7 @@ public class Source implements InsertSourceHandler,
    {
       commands_ = commands;
       binder.bind(commands, this);
+      view.setSource(this);
       views_.add(view);
       server_ = server;
       editingTargetSource_ = editingTargetSource;
@@ -1075,7 +1077,7 @@ public class Source implements InsertSourceHandler,
             EditingTarget sourceEditor = null;
             try
             {
-               sourceEditor = addTab(doc, true, OPEN_REPLAY);
+               sourceEditor = addTab(doc, true, OPEN_REPLAY, null);
             }
             catch (Exception e)
             {
@@ -1191,7 +1193,7 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument response)
                {
-                  addTab(response, OPEN_INTERACTIVE);
+                  addTab(response, OPEN_INTERACTIVE, null);
                }
             });
    }
@@ -1235,7 +1237,7 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument response)
                {
-                  addTab(response, OPEN_INTERACTIVE);
+                  addTab(response, OPEN_INTERACTIVE, null);
                }
             });
    }
@@ -1272,7 +1274,7 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument response)
                {
-                  addTab(response, OPEN_INTERACTIVE);
+                  addTab(response, OPEN_INTERACTIVE, null);
                }
             });
    }
@@ -1305,7 +1307,7 @@ public class Source implements InsertSourceHandler,
             @Override
             public void onResponseReceived(SourceDocument response)
             {
-               addTab(response, OPEN_INTERACTIVE);
+               addTab(response, OPEN_INTERACTIVE, null);
             }
             
             @Override
@@ -1331,7 +1333,7 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument response)
                {
-                  addTab(response, OPEN_INTERACTIVE);
+                  addTab(response, OPEN_INTERACTIVE, null);
                }
                
                @Override
@@ -2057,7 +2059,7 @@ public class Source implements InsertSourceHandler,
                public void onResponseReceived(SourceDocument newDoc)
                {
                   // !!! MJB
-                  EditingTarget target = addTab(newDoc, OPEN_INTERACTIVE);
+                  EditingTarget target = addTab(newDoc, OPEN_INTERACTIVE, null);
                   
                   if (contents != null)
                   {
@@ -2305,7 +2307,7 @@ public class Source implements InsertSourceHandler,
             @Override
             public void onResponseReceived(final SourceDocument doc)
             {
-               final EditingTarget target = addTab(doc, e.getPos());
+               final EditingTarget target = addTab(doc, e.getPos(), null);
                
                Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand()
                {
@@ -2796,10 +2798,11 @@ public class Source implements InsertSourceHandler,
    public void addDisplay()
    {
       Source.Display display = GWT.create(SourcePane.class);
+      display.setSource(this);
       display.ensureVisible();
       views_.add(display);
       views_.setActiveDisplay(display);
-      onNewSourceDoc();
+      display.onNewSourceDoc();
       ensureVisible(false);
    }
 
@@ -3165,7 +3168,7 @@ public class Source implements InsertSourceHandler,
             @Override
             public void onResponseReceived(final SourceDocument doc)
             {
-               editingTargetAction.execute(addTab(doc, OPEN_REPLAY));
+               editingTargetAction.execute(addTab(doc, OPEN_REPLAY, null));
             }
 
             @Override
@@ -3392,7 +3395,7 @@ public class Source implements InsertSourceHandler,
             {
                // create the editor
                EditingTarget target = 
-                     addTab(doc, OPEN_INTERACTIVE);
+                     addTab(doc, OPEN_INTERACTIVE, null);
                
                // show a warning bar 
                if (target instanceof TextEditingTarget)
@@ -3604,7 +3607,7 @@ public class Source implements InsertSourceHandler,
                {
                   dismissProgress.execute();
                   pMruList_.get().add(document.getPath());
-                  EditingTarget target = addTab(document, OPEN_INTERACTIVE);
+                  EditingTarget target = addTab(document, OPEN_INTERACTIVE, null);
                   if (resultCallback != null)
                      resultCallback.onSuccess(target);
                }
@@ -3616,21 +3619,21 @@ public class Source implements InsertSourceHandler,
       return target.asWidget();
    }
    
-   private EditingTarget addTab(SourceDocument doc, int mode)
+   private EditingTarget addTab(SourceDocument doc, int mode, Display display)
    {
-      return addTab(doc, false, mode);
+      return addTab(doc, false, mode, display);
    }
    
    private EditingTarget addTab(SourceDocument doc, boolean atEnd, 
-         int mode)
+         int mode, Display display)
    {
       // by default, add at the tab immediately after the current tab
       return addTab(doc, atEnd ? null : getPhysicalTabIndex() + 1,
-            mode);
+            mode, display);
    }
 
    private EditingTarget addTab(SourceDocument doc, Integer position, 
-         int mode)
+         int mode, Display display)
    {
       final String defaultNamePrefix = editingTargetSource_.getDefaultNamePrefix(doc);
       final EditingTarget target = editingTargetSource_.getEditingTarget(
@@ -3641,7 +3644,7 @@ public class Source implements InsertSourceHandler,
                   return getNextDefaultName(defaultNamePrefix);
                }
             });
-      final Display targetView = views_.getActiveDisplay();
+      final Display targetView = display != null ? display : views_.getActiveDisplay();
       
       final Widget widget = createWidget(target);
 
@@ -3732,7 +3735,7 @@ public class Source implements InsertSourceHandler,
       return target;
    }
 
-   private String getNextDefaultName(String defaultNamePrefix)
+   public String getNextDefaultName(String defaultNamePrefix)
    {
       if (StringUtil.isNullOrEmpty(defaultNamePrefix))
       {
@@ -4910,8 +4913,23 @@ public class Source implements InsertSourceHandler,
    public EditingTarget getActiveEditor()
    {
       return activeEditor_;
+   } 
+
+   public EditingTargetSource getEditingTargetSource()
+   {
+      return editingTargetSource_;
    }
-   
+
+   public SourceServerOperations getServer()
+   {
+      return server_;
+   }
+
+   public RemoteFileSystemContext getFileContext()
+   {
+      return fileContext_;
+   }
+
    public void onOpenProfileEvent(OpenProfileEvent event)
    {
       onShowProfiler(event);
