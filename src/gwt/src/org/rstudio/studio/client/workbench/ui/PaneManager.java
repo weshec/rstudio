@@ -813,10 +813,13 @@ public class PaneManager
       panesByName_ = new HashMap<>();
       panesByName_.put("Console", createConsole());
       assert source_.getViews().size() > 0;
+      String kFrameNamePrefix = "Source";
       for (int i = 0; i < source_.getViews().size(); i++)
       {
          {
-            String frameName = "Source " + Integer.toString(i);
+            String frameName = kFrameNamePrefix;
+            if (i > 0)
+               frameName += Integer.toString(i);
             panesByName_.put(frameName, createSource(frameName, source_.getViewByIndex(i)));
          }
       }
