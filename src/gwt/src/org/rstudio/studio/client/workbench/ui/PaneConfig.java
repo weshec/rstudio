@@ -39,7 +39,7 @@ public class PaneConfig extends UserPrefsAccessor.Panes
          hiddenTabSet: hiddenTabSet,
          console_left_on_top: consoleLeftOnTop,
          console_right_on_top: consoleRightOnTop,
-         extra_sources: extra_sources
+         extra_sources: extraSources
       };
    }-*/;
 
