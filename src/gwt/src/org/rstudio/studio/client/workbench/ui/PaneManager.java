@@ -279,8 +279,8 @@ public class PaneManager
       int counter = 0;
       for (Source.Display display : source_.getViews())
       {
-         //if (counter <= 0)
-         mylist.add(display.asWidget());
+         if (counter > 0)
+            mylist.add(display.asWidget());
          counter++;
       }
 
