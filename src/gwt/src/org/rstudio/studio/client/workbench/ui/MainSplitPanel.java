@@ -359,6 +359,16 @@ public class MainSplitPanel extends NotifyingSplitLayoutPanel
       }
    }
    
+   public void addLeftWidget(Widget widget)
+   {
+      remove(left_);
+      remove(right_);
+      for (Widget w : leftSource_)
+         remove(w);
+      leftSource_.add(widget);
+      initialize(leftSource_, left_, right_);
+   }
+
    private Double splitPercent_ = null;
    private Integer previousOffsetWidth_ = null;
 

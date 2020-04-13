@@ -273,7 +273,8 @@ public class PaneManager
       source_.loadFullSource();
       
       ArrayList<Widget> mylist = new ArrayList<Widget>();
-      //for (int i = 0; i < 3; i++)
+      int extraSourceCount = userPrefs.panes().getGlobalValue().getExtraSources();
+      for (int i = 0; i < extraSourceCount; i++)
          source_.addDisplay();
 
       int counter = 0;
@@ -568,7 +569,8 @@ public class PaneManager
             paneConfig.getTabSet2(),
             paneConfig.getHiddenTabSet(),
             paneConfig.getConsoleLeftOnTop(),
-            paneConfig.getConsoleRightOnTop()).cast());
+            paneConfig.getConsoleRightOnTop(),
+            source_.getViews().size() - 1).cast());
          userPrefs_.writeUserPrefs();
       }
    }
@@ -1016,7 +1018,8 @@ public class PaneManager
          paneConfig.getTabSet2(),
          tabListToJsArrayString(hiddenTabs_),
          paneConfig.getConsoleLeftOnTop(),
-         paneConfig.getConsoleRightOnTop()).cast());
+         paneConfig.getConsoleRightOnTop(),
+         source_.getViews().size() - 1).cast());
       userPrefs_.writeUserPrefs();
    }
 
@@ -1032,7 +1035,8 @@ public class PaneManager
          tabListToJsArrayString(tabs),
          tabListToJsArrayString(hiddenTabs_),
          paneConfig.getConsoleLeftOnTop(),
-         paneConfig.getConsoleRightOnTop()).cast());
+         paneConfig.getConsoleRightOnTop(),
+         source_.getViews().size() - 1).cast());
       userPrefs_.writeUserPrefs();
    }
 
@@ -1125,6 +1129,28 @@ public class PaneManager
    public LogicalWindow getConsoleLogicalWindow()
    {
       return panesByName_.get("Console");
+   }
+
+   public void addSourceWindow()
+   {
+      int id = source_.getViews().size();
+      PaneConfig.addSourcePane();
+      source_.addDisplay();
+      Source.Display display = source_.getViewByIndex(id);
+      String frameName = "Source " + Integer.toString(id);
+      panesByName_.put(frameName, createSource(frameName, display));
+      panel_.addLeftWidget(display.asWidget());
+
+      PaneConfig paneConfig = getCurrentConfig();
+      userPrefs_.panes().setGlobalValue(PaneConfig.create(
+         JsArrayUtil.copy(paneConfig.getQuadrants()),
+         paneConfig.getTabSet1(),
+         paneConfig.getTabSet2(),
+         paneConfig.getHiddenTabSet(),
+         paneConfig.getConsoleLeftOnTop(),
+         paneConfig.getConsoleRightOnTop(),
+         id).cast());
+      userPrefs_.writeUserPrefs();
    }
 
    private DualWindowLayoutPanel createSplitWindow(LogicalWindow top,
