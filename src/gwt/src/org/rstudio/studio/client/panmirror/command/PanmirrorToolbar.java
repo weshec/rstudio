@@ -189,6 +189,8 @@ public class PanmirrorToolbar extends SecondaryToolbar implements RequiresResize
       listMenu.addCommand(PanmirrorCommands.OrderedListEdit);
       formatMenu.addCommand(PanmirrorCommands.Blockquote);
       formatMenu.addSeparator();
+      formatMenu.addCommand(PanmirrorCommands.CodeBlockFormat);
+      formatMenu.addSeparator();
       formatMenu.addCommand(PanmirrorCommands.Div);
       formatMenu.addCommand(PanmirrorCommands.LineBlock);
       formatMenu.addSeparator();
@@ -236,6 +238,8 @@ public class PanmirrorToolbar extends SecondaryToolbar implements RequiresResize
       insertMenu.addCommand(PanmirrorCommands.RmdChunk);
       insertMenu.addCommand(PanmirrorCommands.YamlMetadata);
       insertMenu.addSeparator();
+      insertMenu.addCommand(PanmirrorCommands.InsertDiv);
+      insertMenu.addSeparator();
       insertMenu.addCommand(PanmirrorCommands.InlineMath);
       insertMenu.addCommand(PanmirrorCommands.DisplayMath);
       insertMenu.addSeparator();
@@ -263,6 +267,7 @@ public class PanmirrorToolbar extends SecondaryToolbar implements RequiresResize
       tableMenu.addSeparator();
       tableMenu.addCommand(PanmirrorCommands.TableAddRowBefore);
       tableMenu.addCommand(PanmirrorCommands.TableAddRowAfter);
+      tableMenu.addSeparator();
       tableMenu.addCommand(PanmirrorCommands.TableAddColumnBefore);
       tableMenu.addCommand(PanmirrorCommands.TableAddColumnAfter);
       tableMenu.addSeparator();

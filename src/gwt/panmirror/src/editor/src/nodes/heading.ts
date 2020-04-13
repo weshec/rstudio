@@ -24,6 +24,8 @@ import { Extension } from '../api/extension';
 import { pandocAttrSpec, pandocAttrParseDom, pandocAttrToDomAttr, pandocAttrReadAST } from '../api/pandoc_attr';
 import { uuidv4 } from '../api/util';
 
+import './heading-styles.css';
+
 const HEADING_LEVEL = 0;
 const HEADING_ATTR = 1;
 const HEADING_CHILDREN = 2;
@@ -56,17 +58,27 @@ const extension = (pandocExtensions: PandocExtensions): Extension => {
             { tag: 'h6', getAttrs: getHeadingAttrs(6, headingAttr) },
           ],
           toDOM(node) {
+            const attr = headingAttr ? pandocAttrToDomAttr(node.attrs) : {};
+            attr.class = (attr.class || '').concat(' pm-heading pm-show-text-focus');
             return [
               'h' + node.attrs.level,
               {
                 'data-link': node.attrs.link,
-                ...(headingAttr ? pandocAttrToDomAttr(node.attrs) : {}),
+                ...attr,
               },
 
               0,
             ];
           },
         },
+
+        attr_edit: () => ({
+          type: (schema: Schema) => schema.nodes.heading,
+          // Note that this value is linked to the outline offset defined in heading-styles.css,
+          // so if you change it here, you need to change it there as well
+          offset: () => 6
+        }),
+
         pandoc: {
           readers: [
             {

@@ -31,6 +31,7 @@ import { EditorUI, attrPropsToInput, attrInputToProps, AttrProps, AttrEditInput 
 import { Extension } from './api/extension';
 import { ExtensionManager, initExtensions } from './extensions';
 import { PandocEngine } from './api/pandoc';
+import { PandocCapabilities, getPandocCapabilities } from './api/pandoc_capabilities';
 import { fragmentToHTML } from './api/html';
 import { EditorEvent } from './api/events';
 import {
@@ -48,6 +49,8 @@ import {
   appendMarkTransactionsPlugin,
   kFixupTransaction,
   kAddToHistoryTransaction,
+  kDecoratorDependencyTransaction,
+  kDecoratorRedrawTransaction,
 } from './api/transaction';
 import { EditorOutline } from './api/outline';
 import { EditingLocation, getEditingLocation, restoreEditingLocation } from './api/location';
@@ -173,6 +176,9 @@ export class Editor {
   // provided within the document
   private pandocFormat: PandocFormat;
 
+  // pandoc capabilities
+  private pandocCapabilities: PandocCapabilities;
+
   // core prosemirror state/behaviors
   private readonly extensions: ExtensionManager;
   private readonly schema: Schema;
@@ -200,6 +206,7 @@ export class Editor {
       codemirror: true,
       braceMatching: true,
       rmdCodeChunks: false,
+      rmdImagePreview: false,
       formatComment: true,
       ...options,
     };
@@ -215,8 +222,11 @@ export class Editor {
     // resolve the format
     const pandocFmt = await resolvePandocFormat(context.pandoc, format);
 
+    // get pandoc capabilities
+    const pandocCapabilities = await getPandocCapabilities(context.pandoc);
+
     // create editor
-    const editor = new Editor(parent, context, options, pandocFmt);
+    const editor = new Editor(parent, context, options, pandocFmt, pandocCapabilities);
 
     // set initial markdown if specified
     if (markdown) {
@@ -227,13 +237,20 @@ export class Editor {
     return Promise.resolve(editor);
   }
 
-  private constructor(parent: HTMLElement, context: EditorContext, options: EditorOptions, pandocFormat: PandocFormat) {
+  private constructor(
+    parent: HTMLElement, 
+    context: EditorContext, 
+    options: EditorOptions, 
+    pandocFormat: PandocFormat,
+    pandocCapabilities: PandocCapabilities) 
+  {
     // initialize references
     this.parent = parent;
     this.context = context;
     this.options = options;
     this.keybindings = {};
     this.pandocFormat = pandocFormat;
+    this.pandocCapabilities = pandocCapabilities;
 
     // initialize custom events
     this.events = this.initEvents();
@@ -382,7 +399,12 @@ export class Editor {
   }
 
   public restoreEditingLocation(location: EditingLocation) {
-    restoreEditingLocation(this.view, location);
+    // delay the restore so all of our code mirror instances
+    // can become visible (which allows decorators that reference
+    // offsetTop to draw at the proper location)
+    setTimeout(() => {
+      restoreEditingLocation(this.view, location);
+    }, 100);
   }
 
   public getOutline(): EditorOutline {
@@ -434,6 +456,7 @@ export class Editor {
         keymap: commandKeys[command.id],
         isActive: () => command.isActive(this.state),
         isEnabled: () => command.isEnabled(this.state),
+        plural: () => command.plural(this.state),
         execute: () => {
           command.execute(this.state, this.view.dispatch, this.view);
           if (command.keepFocus) {
@@ -493,6 +516,13 @@ export class Editor {
     this.state = this.state.apply(tr);
     this.view.updateState(this.state);
 
+    // if this was a decorator dependency transaction then emit another transaction
+    // after the view is updated (allows decorators that depend on DOM node positions
+    // to update after the transaction is applied to the view)
+    if (tr.getMeta(kDecoratorDependencyTransaction)) {
+      this.redrawDecorators();
+    }
+
     // notify listeners of selection change
     this.emitEvent(EditorEvent.SelectionChange);
 
@@ -508,6 +538,13 @@ export class Editor {
         this.emitEvent(EditorEvent.OutlineChange);
       }
     }
+  }
+
+  private redrawDecorators() {
+    const decsTr = this.state.tr;
+    decsTr.setMeta(kDecoratorRedrawTransaction, true);
+    decsTr.setMeta(kAddToHistoryTransaction, false);
+    this.view.dispatch(decsTr);
   }
 
   private emitEvent(name: string) {
@@ -533,6 +570,7 @@ export class Editor {
       { subscribe: this.subscribe.bind(this) },
       this.context.extensions,
       this.pandocFormat.extensions,
+      this.pandocCapabilities
     );
   }
 
@@ -699,11 +737,10 @@ export class Editor {
   private applyFixups(context: FixupContext) {
     let tr = this.state.tr;
     tr = this.extensionFixups(tr, context);
-    if (tr.docChanged) {
-      tr.setMeta(kAddToHistoryTransaction, false);
-      tr.setMeta(kFixupTransaction, true);
-      this.view.dispatch(tr);
-    }
+    tr.setMeta(kAddToHistoryTransaction, false);
+    tr.setMeta(kFixupTransaction, true);
+    tr.setMeta(kDecoratorDependencyTransaction, true);
+    this.view.dispatch(tr);
   }
 
   private extensionFixups(tr: Transaction, context: FixupContext) {

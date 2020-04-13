@@ -5,10 +5,17 @@ pandoc schema: <https://github.com/jgm/pandoc-types/blob/master/Text/Pandoc/Defi
 ## Feedback
 
 ## TODO
-  
-Better direct manipulation for tables
 
-Surface attributes handling for div with only an id (shading treatment a bit much?)
+General cleanup of image preview code
+
+Why does the image preview decorator get created twice (observed via console.log). Could it be that
+the entire document is getting rendered twice? (would explian some MANUAL.Rmd slowness)
+
+Delay rendering decorator widgets (via function interface) may obviate the need for us to do the extra decoration render
+
+Try out with Mastering Shiny
+
+More complete docs
 
 MathJax preview. When containing the selection, the math will show both the code and the preview. When not containing the selection will show the preview. (so probably require a node view for this). Consider a “done” gesture for display math. May need to bring back
 escaping of $ in math as this mode will clearly not be "source mode" style latex equation editing
@@ -63,6 +70,9 @@ Notes on preformance implications of scanning the entire document + some discuss
 
 - Semicolons in citations cannot be escaped (they always indicate a delimiter). Solution to this would be
   to mark them explicitly with an input rule (and color them so user sees that there is a state change).
+
+- Edit attributes button is incorrectly positioned in note (this is due to the additional dom elements created by the node view)
+  Note however that headings and divs seem to be poorly supported in notes anyway.
 
 ## Project/Build
 

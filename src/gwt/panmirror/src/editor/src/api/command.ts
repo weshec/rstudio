@@ -47,11 +47,13 @@ export enum EditorCommandId {
   Heading5 = '59E24247-A140-466A-BC96-3C8ADABB57A5',
   Heading6 = 'DB495DF5-8501-43C7-AE07-59CE9D9C373D',
   CodeBlock = '3BA12A49-3E29-4ABC-9A49-436A3B49B880',
+  CodeBlockFormat = '07A6F2AA-01DC-41D7-9F01-AA91EAD856EE',
   Blockquote = 'AF0717E7-E4BA-4909-9F10-17EB757CDD0F',
   LineBlock = 'F401687C-B995-49AF-B2B0-59C158174FD5',
   AttrEdit = '0F8A254D-9272-46BF-904D-3A9D68B91032',
   Span = '852CF3E3-8A2B-420D-BD95-F79C54118E7E',
   Div = '15EDB8F1-6015-4DA9-AE50-5987B24C1D96',
+  InsertDiv = 'ACA1521B-8875-4113-9D43-B47F0038B19F',
 
   // lists
   BulletList = 'D897FD2B-D6A4-44A7-A404-57B5251FBF64',
@@ -112,6 +114,7 @@ export interface EditorCommand {
   readonly keymap: readonly string[];
   readonly isEnabled: () => boolean;
   readonly isActive: () => boolean;
+  readonly plural: () => number;
   readonly execute: () => void;
 }
 
@@ -134,6 +137,10 @@ export class ProsemirrorCommand {
 
   public isActive(state: EditorState): boolean {
     return false;
+  }
+
+  public plural(state: EditorState): number {
+    return 1;
   }
 }
 
