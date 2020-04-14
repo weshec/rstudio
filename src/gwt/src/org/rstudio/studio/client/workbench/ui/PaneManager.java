@@ -283,7 +283,6 @@ public class PaneManager
       right_ = createSplitWindow(panes_.get(2), panes_.get(3), RIGHT_COLUMN, 0.6, splitterSize);
       panel_ = pSplitPanel.get();
 
-
       // get the widgets for the extra source columns to be displayed
       ArrayList<Widget> sourceColumns;
       if (source_.getViews().size() > 1)
