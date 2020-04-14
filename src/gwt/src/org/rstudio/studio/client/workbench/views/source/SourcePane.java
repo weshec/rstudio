@@ -31,6 +31,7 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 
 import org.rstudio.core.client.ResultCallback;
+import org.rstudio.core.client.StringUtil;
 import org.rstudio.core.client.command.CommandBinder;
 import org.rstudio.core.client.events.*;
 import org.rstudio.core.client.js.JsObject;
@@ -75,7 +76,8 @@ public class SourcePane extends LazyPanel implements Display,
                                                      BeforeShowCallback,
                                                      RequiresVisibilityChanged,
                                                      EnsureVisibleSourceWindowEvent.Handler,
-                                                     MaximizeSourceWindowEvent.Handler
+                                                     MaximizeSourceWindowEvent.Handler,
+                                                     DocWindowChangedEvent.Handler
 {
    public interface Binder extends CommandBinder<Commands, SourcePane> {}
 
@@ -88,6 +90,7 @@ public class SourcePane extends LazyPanel implements Display,
       events_ = RStudioGinjector.INSTANCE.getEventBus();
       events_.addHandler(MaximizeSourceWindowEvent.TYPE, this);
       events_.addHandler(EnsureVisibleSourceWindowEvent.TYPE, this);
+      events_.addHandler(DocWindowChangedEvent.TYPE, this);
 
       setVisible(true);
       ensureWidget();
@@ -149,6 +152,24 @@ public class SourcePane extends LazyPanel implements Display,
 
    protected void onUnload()
    {
+   }
+
+   @Override
+   public String getName()
+   {
+      return name_;
+   }
+
+   @Override
+   public void generateName(boolean first)
+   {
+      if (StringUtil.isNullOrEmpty(name_))
+      {
+         if (first)
+            name_ = "Source";
+         else
+            name_ = Source.COLUMN_PREFIX + StringUtil.makeRandomId(12);
+      }
    }
 
    public void addTab(Widget widget,
@@ -344,6 +365,11 @@ public class SourcePane extends LazyPanel implements Display,
          events_.fireEvent(new EnsureVisibleEvent());
          events_.fireEvent(new EnsureHeightEvent(EnsureHeightEvent.NORMAL));
       }
+   }
+
+   @Override
+   public void onDocWindowChanged(final DocWindowChangedEvent e)
+   {
    }
 
    public void onResize()
@@ -547,6 +573,7 @@ public class SourcePane extends LazyPanel implements Display,
       return target.asWidget();
    }
 
+   private String name_;
    private Source source_;
    private DocTabLayoutPanel tabPanel_;
    private HTML utilPanel_;
