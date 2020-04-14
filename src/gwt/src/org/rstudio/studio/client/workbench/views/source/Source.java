@@ -41,9 +41,6 @@ import com.google.gwt.user.client.Event.NativePreviewEvent;
 import com.google.gwt.user.client.Event.NativePreviewHandler;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
-//import com.google.gwt.user.client.ui.IsWidget;
-//import com.google.gwt.user.client.ui.LayoutPanel;
-//import com.google.gwt.user.client.ui.Widget;
 import com.google.gwt.user.client.ui.*;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -382,9 +379,6 @@ public class Source implements InsertSourceHandler,
       dependencyManager_ = dependencyManager;
       pWindowManager_ = pWindowManager;
 
-//      displayManagerList_.add(
-//            new SourceDisplayManager(
-//               new SourcePane(commands, events, binder), view));
       commands_.newSourceDoc().setEnabled(true);
 
       events.fireEvent(new DocTabsChangedEvent(null,
@@ -2795,7 +2789,7 @@ public class Source implements InsertSourceHandler,
       }
    }
    
-   public void addDisplay()
+   public void addView()
    {
       Source.Display display = GWT.create(SourcePane.class);
       display.setSource(this);
@@ -2819,6 +2813,14 @@ public class Source implements InsertSourceHandler,
    public ArrayList<Display> getViews()
    {
       return views_;
+   }
+
+   public ArrayList<Widget> getViewsAsWidgets()
+   {
+      ArrayList<Widget> result = new ArrayList<Widget>();
+      for (Display view : views_)
+         result.add(view.asWidget());
+      return result;
    }
    
    private void revertActiveDocument()
@@ -5234,7 +5236,6 @@ public class Source implements InsertSourceHandler,
    final Queue<OpenFileEntry> openFileQueue_ = new LinkedList<OpenFileEntry>();
    ArrayList<EditingTarget> editors_ = new ArrayList<EditingTarget>();
    ArrayList<Integer> tabOrder_ = new ArrayList<Integer>();
-   ArrayList<SourceDisplayManager> displayManagerList_ = new ArrayList<SourceDisplayManager>();
    DisplayList views_ = new DisplayList();
    private EditingTarget activeEditor_;
    private final Commands commands_;
@@ -5281,4 +5282,5 @@ public class Source implements InsertSourceHandler,
    public final static int TYPE_UNTITLED    = 1;
    public final static int OPEN_INTERACTIVE = 0;
    public final static int OPEN_REPLAY      = 1;
+   public final static String COLUMN_PREFIX = "Source";
 }

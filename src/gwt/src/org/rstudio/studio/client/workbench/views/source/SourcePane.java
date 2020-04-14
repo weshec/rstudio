@@ -220,7 +220,6 @@ public class SourcePane extends LazyPanel implements Display,
    public void onNewSourceDoc()
    {
       String breakpoint = "breakpoint";
-      //newDoc(FileTypeRegistry.R, null);
       EditableFileType fileType = FileTypeRegistry.R;
 
       TextFileType textType = (TextFileType)fileType;

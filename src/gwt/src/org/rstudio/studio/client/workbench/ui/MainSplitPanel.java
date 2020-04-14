@@ -374,7 +374,7 @@ public class MainSplitPanel extends NotifyingSplitLayoutPanel
 
    private final Session session_;
    @SuppressWarnings("unused")
-   private ArrayList<Widget> leftSource_;
+   private ArrayList<Widget> leftSource_ = new ArrayList<Widget>();
    private Widget left_;
    private Widget right_;
    private static final String GROUP_WORKBENCH = "workbenchp";

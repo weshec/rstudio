@@ -22,7 +22,6 @@ import com.google.gwt.dom.client.Element;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
-//import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.SplitterResizedEvent;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
@@ -272,17 +271,14 @@ public class PaneManager
       binder.bind(commands, this);
       source_.loadFullSource();
       
-      ArrayList<Widget> mylist = new ArrayList<Widget>();
-      int extraSourceCount = userPrefs.panes().getGlobalValue().getExtraSources();
-      for (int i = 0; i < extraSourceCount; i++)
-         source_.addDisplay();
-
-      int counter = 0;
-      for (Source.Display display : source_.getViews())
+      // determine the number of source panes (subtract one for the main source) and
+      // add any missing to source_
+      int sourceCount = userPrefs.panes().getGlobalValue().getExtraSources() + 1;
+      if (source_.getViews().size() < sourceCount)
       {
-         if (counter > 0)
-            mylist.add(display.asWidget());
-         counter++;
+         int difference = sourceCount - source_.getViews().size();
+         for (int i = 0; i < difference; i++)
+            source_.addView();
       }
 
       PaneConfig config = validateConfig(userPrefs.panes().getValue().cast());
@@ -293,10 +289,17 @@ public class PaneManager
       panes_ = createPanes(config);
       left_ = createSplitWindow(panes_.get(0), panes_.get(1), LEFT_COLUMN, 0.4, splitterSize);
       right_ = createSplitWindow(panes_.get(2), panes_.get(3), RIGHT_COLUMN, 0.6, splitterSize);
-
-
       panel_ = pSplitPanel.get();
-      panel_.initialize(mylist, left_, right_);
+
+      if (sourceCount > 1)
+      {
+         ArrayList<Widget> sourceColumns =  new ArrayList<Widget>(
+               source_.getViewsAsWidgets().subList(1, sourceCount));
+         panel_.initialize(sourceColumns, left_, right_);
+      }
+      else
+         panel_.initialize(left_, right_);
+
       
       // count the number of source docs assigned to this window
       JsArray<SourceDocument> docs = 
@@ -312,19 +315,19 @@ public class PaneManager
          }
       }
       
-      /* !!! need to update this to handle the list
-      if (numDocs == 0 && sourceLogicalWindow_.getState() != WindowState.HIDE)
+      for (LogicalWindow window : sourceLogicalWindows_)
       {
-         sourceLogicalWindow_.onWindowStateChange(
-               new WindowStateChangeEvent(WindowState.HIDE));
+         if (numDocs == 0 && window.getState() != WindowState.HIDE)
+         {
+            window.onWindowStateChange(
+                  new WindowStateChangeEvent(WindowState.HIDE));
+         }
+         else if (numDocs > 0 && window.getState() == WindowState.HIDE)
+         {
+            window.onWindowStateChange(
+                  new WindowStateChangeEvent(WindowState.NORMAL));
+         }
       }
-      else if (numDocs > 0
-               && sourceLogicalWindow_.getState() == WindowState.HIDE)
-      {
-         sourceLogicalWindow_.onWindowStateChange(
-               new WindowStateChangeEvent(WindowState.NORMAL));
-      }
-      */
 
       userPrefs.panes().addValueChangeHandler(evt ->
       {
@@ -815,15 +818,12 @@ public class PaneManager
       panesByName_ = new HashMap<>();
       panesByName_.put("Console", createConsole());
       assert source_.getViews().size() > 0;
-      String kFrameNamePrefix = "Source";
       for (int i = 0; i < source_.getViews().size(); i++)
       {
-         {
-            String frameName = kFrameNamePrefix;
-            if (i > 0)
-               frameName += Integer.toString(i);
-            panesByName_.put(frameName, createSource(frameName, source_.getViewByIndex(i)));
-         }
+         String frameName = Source.COLUMN_PREFIX;
+         if (i > 0)
+            frameName += Integer.toString(i);
+         panesByName_.put(frameName, createSource(frameName, source_.getViewByIndex(i)));
       }
 
       Triad<LogicalWindow, WorkbenchTabPanel, MinimizedModuleTabLayoutPanel> ts1 = createTabSet(
@@ -1135,7 +1135,7 @@ public class PaneManager
    {
       int id = source_.getViews().size();
       PaneConfig.addSourcePane();
-      source_.addDisplay();
+      source_.addView();
       Source.Display display = source_.getViewByIndex(id);
       String frameName = "Source " + Integer.toString(id);
       panesByName_.put(frameName, createSource(frameName, display));
@@ -1481,7 +1481,6 @@ public class PaneManager
    private final HashMap<Tab, Integer> tabToIndex_ = new HashMap<>();
    private final HashMap<WorkbenchTab, Tab> wbTabToTab_ = new HashMap<>();
    private HashMap<String, LogicalWindow> panesByName_;
-   //private final Widget leftSource_;
    private final DualWindowLayoutPanel left_;
    private final DualWindowLayoutPanel right_;
    private ArrayList<LogicalWindow> panes_;
