@@ -16,6 +16,7 @@ package org.rstudio.studio.client.workbench.views.source.events;
 
 import org.rstudio.core.client.js.JavaScriptSerializable;
 import org.rstudio.studio.client.application.events.CrossWindowEvent;
+import org.rstudio.studio.client.workbench.views.source.Source;
 import org.rstudio.studio.client.workbench.views.source.model.SourcePosition;
 
 import com.google.gwt.event.shared.EventHandler;
@@ -38,10 +39,11 @@ public class PopoutDocEvent extends CrossWindowEvent<PopoutDocEvent.Handler>
    }
    
    public PopoutDocEvent(PopoutDocInitiatedEvent originator,
-         SourcePosition sourcePosition)
+         SourcePosition sourcePosition, Source.Display display)
    {
       originator_ = originator;
       sourcePosition_ = sourcePosition;
+      display_ = display;
    }
    
    public PopoutDocInitiatedEvent getOriginator()
@@ -52,6 +54,11 @@ public class PopoutDocEvent extends CrossWindowEvent<PopoutDocEvent.Handler>
    public SourcePosition getSourcePosition()
    {
       return sourcePosition_;
+   }
+   
+   public Source.Display getDisplay()
+   {
+      return display_;
    }
    
    public String getDocId()
@@ -78,6 +85,7 @@ public class PopoutDocEvent extends CrossWindowEvent<PopoutDocEvent.Handler>
    }
 
    private SourcePosition sourcePosition_;
+   private Source.Display display_;
    private PopoutDocInitiatedEvent originator_;
    
    public static final Type<Handler> TYPE = new Type<Handler>();

@@ -238,9 +238,11 @@ public class Source implements InsertSourceHandler,
       int getTabCount();
       int getActiveTabIndex();
       boolean hasTab(Widget widget);
+      void closeTabByDocId(String docId, boolean interactive);
+      void closeTabByPath(String path, boolean interactive);
+      void closeTab(boolean interactive);
       void closeTab(Widget widget, boolean interactive);
       void closeTab(Widget widget, boolean interactive, Command onClosed);
-      void closeTab(int index, boolean interactive);
       void closeTab(int index, boolean interactive, Command onClosed);
       void moveTab(int index, int delta);
       void setDirty(Widget widget, boolean dirty);
@@ -301,6 +303,16 @@ public class Source implements InsertSourceHandler,
          {
              if (display.hasTab(target.asWidget()))
                 return display;
+         }
+         return null;
+      }
+
+      public Display getDisplayByName(String name)
+      {
+         for (Display display : this)
+         {
+            if (StringUtil.equals(name, display.getName()))
+               return display;
          }
          return null;
       }
@@ -2055,7 +2067,6 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument newDoc)
                {
-                  // !!! MJB
                   EditingTarget target = addTab(newDoc, OPEN_INTERACTIVE, null);
                   
                   if (contents != null)
@@ -2266,7 +2277,7 @@ public class Source implements InsertSourceHandler,
          @Override
          public void execute()
          {
-            disownDoc(e.getDocId());
+            disownDoc(e.getDocId(), e.getDisplay());
          }
       });
    }
@@ -2286,6 +2297,7 @@ public class Source implements InsertSourceHandler,
    {
       if (e.getNewWindowId() == SourceWindowManager.getSourceWindowId())
       {
+         // for the main source window we need to check if the displays match as well
          ensureVisible(true);
          
          // look for a collaborative editing session currently running inside 
@@ -2304,7 +2316,11 @@ public class Source implements InsertSourceHandler,
             @Override
             public void onResponseReceived(final SourceDocument doc)
             {
-               final EditingTarget target = addTab(doc, e.getPos(), null);
+               Display display =
+                  SourceWindowManager.isMainSourceWindow() ? 
+                     views_.getDisplayByName(e.getNewDisplayName()) :
+                     null;
+               final EditingTarget target = addTab(doc, e.getPos(), display);
                
                Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand()
                {
@@ -2329,25 +2345,27 @@ public class Source implements InsertSourceHandler,
       }
       else if (e.getOldWindowId() == SourceWindowManager.getSourceWindowId())
       {
-         // cancel tab drag if it was occurring
-         views_.getActiveDisplay().cancelTabDrag();
-         
-         // disown this doc if it was our own
-         disownDoc(e.getDocId());
+         String displayName =
+            SourceWindowManager.isMainSourceWindow() ? e.getNewDisplayName() :
+                                                       views_.getActiveDisplay().getName();
+         if (StringUtil.isNullOrEmpty(displayName))
+            Debug.logToConsole("ERROR MISSING DISPLAY NAME");
+         else
+         {
+            Display display = views_.getDisplayByName(displayName);
+            // cancel tab drag if it was occurring
+            display.cancelTabDrag();
+            
+            // disown this doc if it was our own
+            disownDoc(e.getDocId(), display);
+         }
       }
    }
    
-   private void disownDoc(String docId)
+   private void disownDoc(String docId, Display display)
    {
       suspendDocumentClose_ = true;
-      for (int i = 0; i < editors_.size(); i++)
-      {
-         if (editors_.get(i).getId() == docId)
-         {
-            views_.getActiveDisplay().closeTab(i, false);
-            break;
-         }
-      }
+      display.closeTabByDocId(docId, false);
       suspendDocumentClose_ = false;
    }
 
@@ -2412,7 +2430,7 @@ public class Source implements InsertSourceHandler,
       if (views_.getActiveDisplay().getTabCount() == 0)
          return;
       
-      views_.getActiveDisplay().closeTab(views_.getActiveDisplay().getActiveTabIndex(), interactive);
+      views_.getActiveDisplay().closeTab(interactive);
    }
    
    /**
@@ -4686,14 +4704,7 @@ public class Source implements InsertSourceHandler,
          {
             final String path = CodeBrowserEditingTarget.getCodeBrowserPath(
                   event.getFunction());
-            for (int i = 0; i < editors_.size(); i++)
-            {
-               if (editors_.get(i).getPath() == path)
-               {
-                  views_.getDisplayByEditor(editors_.get(i)).closeTab(i, false);
-                  return;
-               }
-            }
+            views_.getDisplayByName(event.getDisplayName()).closeTabByPath(path, false);
          }
       });
    }

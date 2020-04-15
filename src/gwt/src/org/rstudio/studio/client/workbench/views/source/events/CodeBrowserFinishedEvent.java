@@ -34,9 +34,10 @@ public class CodeBrowserFinishedEvent extends
       this(null);
    }
    
-   public CodeBrowserFinishedEvent(SearchPathFunctionDefinition function)
+   public CodeBrowserFinishedEvent(SearchPathFunctionDefinition function, String displayName)
    {
       function_ = function;
+      displayName_ = displayName;
    }
    
    public SearchPathFunctionDefinition getFunction()
@@ -44,6 +45,11 @@ public class CodeBrowserFinishedEvent extends
       return function_;
    }
    
+   public String getDisplayName()
+   {
+      return displayName_;
+   }
+
    @Override
    protected void dispatch(CodeBrowserFinishedHandler handler)
    {
@@ -63,4 +69,5 @@ public class CodeBrowserFinishedEvent extends
    }
    
    private SearchPathFunctionDefinition function_;
+   private String displayName_;
 }
