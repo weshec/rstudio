@@ -2362,8 +2362,8 @@ public class Source implements InsertSourceHandler,
          {
             DocTabDragParams params = event.getDragParams();
             params.setSourcePosition(editor.currentPosition());
+            params.setDisplayName(views_.getDisplayByEditor(editor).getName());
             events_.fireEvent(new DocTabDragStartedEvent(params));
-            
          }
       });
    }
@@ -3752,6 +3752,11 @@ public class Source implements InsertSourceHandler,
          target.beginCollabSession(doc.getCollabParams());
       
       return target;
+   }
+
+   public void addEditor(EditingTarget target)
+   {
+      editors_.add(target);
    }
 
    public String getNextDefaultName(String defaultNamePrefix)
