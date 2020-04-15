@@ -3568,7 +3568,7 @@ public class TextEditingTarget implements
             {
                events_.fireEventToMainWindow(new DocWindowChangedEvent(
                      getId(), SourceWindowManager.getSourceWindowId(), "",
-                     DocTabDragParams.create(getId(), currentPosition()),
+                     DocTabDragParams.create(getId(), currentPosition(), null),
                      docUpdateSentinel_.getDoc().getCollabParams(), 0));
             }
          });
