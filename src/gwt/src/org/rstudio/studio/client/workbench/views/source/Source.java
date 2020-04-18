@@ -266,6 +266,8 @@ public class Source implements InsertSourceHandler,
       @Handler
       void onNewSourceDoc();
       HandlerRegistration addBeforeShowHandler(BeforeShowHandler handler);
+
+      public void onEnsureVisibleSourceWindow(EnsureVisibleSourceWindowEvent e);
    }
 
    public interface CPSEditingTargetCommand
@@ -287,19 +289,19 @@ public class Source implements InsertSourceHandler,
 
       public Display getActiveDisplay()
       {
-         return activeDisplay_ != null ? activeDisplay_ : getDisplayByEditor(activeEditor_);
+         if (activeDisplay_ != null)
+            return activeDisplay_;
+         if (activeEditor_ != null)
+            return getDisplayByEditor(activeEditor_);
+         return this.get(0);
       }
 
       public Display getDisplayByEditor(EditingTarget target)
       {
-         // !!! temporary check, target should never be null
-         if (target != null)
+         for (Display display : this)
          {
-            for (Display display : this)
-            {
-                if (display.hasTab(target.asWidget()))
-                   return display;
-            }
+             if (display.hasTab(target.asWidget()))
+                return display;
          }
          return null;
       }
@@ -312,6 +314,21 @@ public class Source implements InsertSourceHandler,
             tabCount += display.getTabCount();
          }
          return tabCount;
+      }
+
+      public void closeTabs(EditingTarget editingTarget, boolean interactive, Command continuation)
+      {
+         for (Display view : this)
+            view.closeTab(
+                  editingTarget.asWidget(),
+                  interactive,
+                  continuation);
+      }
+
+      public void manageChevronVisibility()
+      {
+         for (Display view : this)
+            view.manageChevronVisibility();
       }
 
       Display activeDisplay_;
@@ -937,7 +954,7 @@ public class Source implements InsertSourceHandler,
    
    private void vimSetTabIndex(int index)
    {
-      int tabCount = views_.getActiveDisplay().getTabCount();
+      int tabCount = views_.getTabCount();
       if (index >= tabCount)
          return;
       setPhysicalTabIndex(index);
@@ -966,9 +983,7 @@ public class Source implements InsertSourceHandler,
                   public void execute(EditingTarget editingTarget,
                                       Command continuation)
                   {
-                     views_.getActiveDisplay().closeTab(editingTarget.asWidget(),
-                           false,
-                           continuation);
+                     views_.closeTabs(editingTarget, false, continuation);
                   }
                });
             }
@@ -1061,7 +1076,7 @@ public class Source implements InsertSourceHandler,
             EditingTarget sourceEditor = null;
             try
             {
-               sourceEditor = addTab(doc, true, OPEN_REPLAY);
+               sourceEditor = addTab(doc, true, OPEN_REPLAY, null);
             }
             catch (Exception e)
             {
@@ -1177,7 +1192,7 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument response)
                {
-                  addTab(response, OPEN_INTERACTIVE);
+                  addTab(response, OPEN_INTERACTIVE, null);
                }
             });
    }
@@ -1221,7 +1236,7 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument response)
                {
-                  addTab(response, OPEN_INTERACTIVE);
+                  addTab(response, OPEN_INTERACTIVE, null);
                }
             });
    }
@@ -1258,7 +1273,7 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument response)
                {
-                  addTab(response, OPEN_INTERACTIVE);
+                  addTab(response, OPEN_INTERACTIVE, null);
                }
             });
    }
@@ -1291,7 +1306,7 @@ public class Source implements InsertSourceHandler,
             @Override
             public void onResponseReceived(SourceDocument response)
             {
-               addTab(response, OPEN_INTERACTIVE);
+               addTab(response, OPEN_INTERACTIVE, null);
             }
             
             @Override
@@ -1317,7 +1332,7 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument response)
                {
-                  addTab(response, OPEN_INTERACTIVE);
+                  addTab(response, OPEN_INTERACTIVE, null);
                }
                
                @Override
@@ -2042,14 +2057,15 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument newDoc)
                {
-                  EditingTarget target = addTab(newDoc, OPEN_INTERACTIVE);
-
+                  // !!! MJB
+                  EditingTarget target = addTab(newDoc, OPEN_INTERACTIVE, null);
+                  
                   if (contents != null)
                   {
                      target.forceSaveCommandActive();
                      manageSaveCommands();
                   }
-
+                  
                   if (resultCallback != null)
                      resultCallback.onSuccess(target);
                }
@@ -2062,6 +2078,7 @@ public class Source implements InsertSourceHandler,
                }
             });
    }
+   
    @Handler
    public void onFindInFiles()
    {
@@ -2289,7 +2306,7 @@ public class Source implements InsertSourceHandler,
             @Override
             public void onResponseReceived(final SourceDocument doc)
             {
-               final EditingTarget target = addTab(doc, e.getPos());
+               final EditingTarget target = addTab(doc, e.getPos(), null);
                
                Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand()
                {
@@ -2397,9 +2414,7 @@ public class Source implements InsertSourceHandler,
       if (views_.getActiveDisplay().getTabCount() == 0)
          return;
       
-      views_.getActiveDisplay().closeTab(
-            views_.getActiveDisplay().getActiveTabIndex(),
-            interactive);
+      views_.getActiveDisplay().closeTab(views_.getActiveDisplay().getActiveTabIndex(), interactive);
    }
    
    /**
@@ -2629,7 +2644,7 @@ public class Source implements InsertSourceHandler,
                   }
                   else
                   {
-                     views_.getActiveDisplay().closeTab(target.asWidget(), false, continuation);
+                     views_.closeTabs(target, false, continuation);
                   }
                }
             });
@@ -2793,19 +2808,19 @@ public class Source implements InsertSourceHandler,
       return display;
    }
 
-   public Display getView()
+   public Display getActiveView()
    {
       return views_.getActiveDisplay();
-   }
-
-   public ArrayList<Display> getViews()
-   {
-      return views_;
    }
 
    public Display getViewByIndex(int index)
    {
       return views_.get(index);
+   }
+
+   public ArrayList<Display> getViews()
+   {
+      return views_;
    }
 
    public ArrayList<Widget> getViewsAsWidgets()
@@ -2815,7 +2830,7 @@ public class Source implements InsertSourceHandler,
          result.add(view.asWidget());
       return result;
    }
-
+   
    private void revertActiveDocument()
    {
       if (activeEditor_ == null)
@@ -2857,7 +2872,8 @@ public class Source implements InsertSourceHandler,
                else
                {
                   // untitled document -- just close the tab non-interactively
-                  views_.getActiveDisplay().closeTab(saveTarget.asWidget(), false, continuation);
+                  views_.getDisplayByEditor(saveTarget).closeTab(
+                     saveTarget.asWidget(), false, continuation);
                }
             }
          },
@@ -3014,7 +3030,6 @@ public class Source implements InsertSourceHandler,
    
    public void onEditPresentationSource(final EditPresentationSourceEvent event)
    { 
-      openingForSourceNavigation_ = true;
       openFile(
             event.getSourceFile(), 
             FileTypeRegistry.RPRESENTATION,
@@ -3022,7 +3037,6 @@ public class Source implements InsertSourceHandler,
                @Override
                public void execute(final EditingTarget editor)
                {   
-                  openingForSourceNavigation_ = false;
                   TextEditingTargetPresentationHelper.navigateToSlide(
                                                          editor, 
                                                          event.getSlideIndex());
@@ -3166,7 +3180,7 @@ public class Source implements InsertSourceHandler,
             @Override
             public void onResponseReceived(final SourceDocument doc)
             {
-               editingTargetAction.execute(addTab(doc, OPEN_REPLAY));
+               editingTargetAction.execute(addTab(doc, OPEN_REPLAY, null));
             }
 
             @Override
@@ -3217,7 +3231,7 @@ public class Source implements InsertSourceHandler,
                }
                else
                {
-                  views_.getActiveDisplay().selectTab(i);
+                  views_.getDisplayByEditor(target).selectTab(i);
                   editingTargetAction.execute(target);
                }
                return;
@@ -3398,7 +3412,7 @@ public class Source implements InsertSourceHandler,
             {
                // create the editor
                EditingTarget target = 
-                     addTab(doc, OPEN_INTERACTIVE);
+                     addTab(doc, OPEN_INTERACTIVE, null);
                
                // show a warning bar 
                if (target instanceof TextEditingTarget)
@@ -3482,7 +3496,7 @@ public class Source implements InsertSourceHandler,
          if (thisPath != null
              && thisPath.equalsIgnoreCase(file.getPath()))
          {
-            views_.getActiveDisplay().selectTab(i);
+            views_.getDisplayByEditor(target).selectTab(i);
             pMruList_.get().add(thisPath);
             if (resultCallback != null)
                resultCallback.onSuccess(target);
@@ -3622,7 +3636,7 @@ public class Source implements InsertSourceHandler,
                   
                   dismissProgress.execute();
                   pMruList_.get().add(document.getPath());
-                  EditingTarget target = addTab(document, OPEN_INTERACTIVE);
+                  EditingTarget target = addTab(document, OPEN_INTERACTIVE, null);
                   if (resultCallback != null)
                      resultCallback.onSuccess(target);
                }
@@ -3634,21 +3648,21 @@ public class Source implements InsertSourceHandler,
       return target.asWidget();
    }
    
-   private EditingTarget addTab(SourceDocument doc, int mode)
+   private EditingTarget addTab(SourceDocument doc, int mode, Display display)
    {
-      return addTab(doc, false, mode);
+      return addTab(doc, false, mode, display);
    }
    
    private EditingTarget addTab(SourceDocument doc, boolean atEnd, 
-         int mode)
+         int mode, Display display)
    {
       // by default, add at the tab immediately after the current tab
       return addTab(doc, atEnd ? null : getPhysicalTabIndex() + 1,
-            mode);
+            mode, display);
    }
 
-   private EditingTarget addTab(SourceDocument doc, Integer position,
-         int mode)
+   private EditingTarget addTab(SourceDocument doc, Integer position, 
+         int mode, Display display)
    {
       final String defaultNamePrefix = editingTargetSource_.getDefaultNamePrefix(doc);
       final EditingTarget target = editingTargetSource_.getEditingTarget(
@@ -3659,8 +3673,8 @@ public class Source implements InsertSourceHandler,
                   return getNextDefaultName(defaultNamePrefix);
                }
             });
-      final Display targetView = views_.getActiveDisplay();
-
+      final Display targetView = display != null ? display : views_.getActiveDisplay();
+      
       final Widget widget = createWidget(target);
 
       if (position == null)
@@ -3729,16 +3743,16 @@ public class Source implements InsertSourceHandler,
             targetView.closeTab(widget, false);
          }
       });
-
+      
       events_.fireEvent(new SourceDocAddedEvent(doc, mode));
-
+      
       if (target instanceof TextEditingTarget && doc.isReadOnly())
       {
          ((TextEditingTarget) target).setIntendedAsReadOnly(
                JsUtil.toList(doc.getReadOnlyAlternatives()));
       }
-
-      // adding a tab may enable commands that are only available when
+      
+      // adding a tab may enable commands that are only available when 
       // multiple documents are open; if this is the second document, go check
       if (editors_.size() == 2)
          manageMultiTabCommands();
@@ -3843,7 +3857,7 @@ public class Source implements InsertSourceHandler,
             {
                if (srcNav.getDocumentId() == editors_.get(i).getId())
                {
-                  views_.getActiveDisplay().selectTab(i);
+                  views_.getDisplayByEditor(editors_.get(i)).selectTab(i);
                   break;
                }
             }
@@ -3882,7 +3896,7 @@ public class Source implements InsertSourceHandler,
       manageCommands();
       fireDocTabsChanged();
 
-      if (views_.getActiveDisplay().getTabCount() == 0)
+      if (views_.getDisplayByEditor(target).getTabCount() == 0)
       {
          sourceNavigationHistory_.clear();
          events_.fireEvent(new LastSourceDocClosedEvent());
@@ -3970,7 +3984,7 @@ public class Source implements InsertSourceHandler,
             
       events_.fireEvent(new DocTabsChangedEvent(activeId, ids, icons, names, paths));
 
-      views_.getActiveDisplay().manageChevronVisibility();
+      views_.manageChevronVisibility();
    }
 
    public void onSelection(SelectionEvent<Integer> event)
@@ -4408,12 +4422,15 @@ public class Source implements InsertSourceHandler,
 
    public void onBeforeShow(BeforeShowEvent event)
    {
-      if (views_.getActiveDisplay().getTabCount() == 0 && newTabPending_ == 0)
+      for (Display view : views_)
       {
-         // Avoid scenarios where the Source tab comes up but no tabs are
-         // in it. (But also avoid creating an extra source tab when there
-         // were already new tabs about to be created!)
-         onNewSourceDoc();
+         if (view.getTabCount() == 0 && newTabPending_ == 0)
+         {
+            // Avoid scenarios where the Source tab comes up but no tabs are
+            // in it. (But also avoid creating an extra source tab when there
+            // were already new tabs about to be created!)
+            onNewSourceDoc();
+         }
       }
    }
       
@@ -4574,7 +4591,7 @@ public class Source implements InsertSourceHandler,
             suspendSourceNavigationAdding_ = true;
             try
             {
-               views_.getActiveDisplay().selectTab(target.asWidget());
+               views_.getDisplayByEditor(target).selectTab(target.asWidget());
                target.restorePosition(navigation.getPosition());
             }
             finally
@@ -4683,7 +4700,7 @@ public class Source implements InsertSourceHandler,
             {
                if (editors_.get(i).getPath() == path)
                {
-                  views_.getActiveDisplay().closeTab(i, false);
+                  views_.getDisplayByEditor(editors_.get(i)).closeTab(i, false);
                   return;
                }
             }
@@ -4758,7 +4775,7 @@ public class Source implements InsertSourceHandler,
          {
             // select the tab
             ensureVisible(false);
-            views_.getActiveDisplay().selectTab(i);
+            views_.getDisplayByEditor(editors_.get(i)).selectTab(i);
             
             // callback
             callback.onSuccess((CodeBrowserEditingTarget) editors_.get(i));
@@ -4930,7 +4947,7 @@ public class Source implements InsertSourceHandler,
    public EditingTarget getActiveEditor()
    {
       return activeEditor_;
-   }
+   } 
 
    public EditingTargetSource getEditingTargetSource()
    {
@@ -5021,7 +5038,8 @@ public class Source implements InsertSourceHandler,
             {
               if (JsArrayUtil.jsArrayStringContains(ids, target.getId()))
               {
-                 views_.getActiveDisplay().closeTab(target.asWidget(), false /* non interactive */);
+                 views_.getDisplayByEditor(target).closeTab(
+                       target.asWidget(), false /* non interactive */);
               }
             }
          }
@@ -5248,9 +5266,9 @@ public class Source implements InsertSourceHandler,
    final Queue<OpenFileEntry> openFileQueue_ = new LinkedList<OpenFileEntry>();
    ArrayList<EditingTarget> editors_ = new ArrayList<EditingTarget>();
    ArrayList<Integer> tabOrder_ = new ArrayList<Integer>();
+   DisplayList views_ = new DisplayList();
    private EditingTarget activeEditor_;
    private final Commands commands_;
-   private final DisplayList views_ = new DisplayList();
    private final SourceServerOperations server_;
    private final EditingTargetSource editingTargetSource_;
    private final FileTypeRegistry fileTypeRegistry_;
@@ -5269,10 +5287,10 @@ public class Source implements InsertSourceHandler,
    private final ConsoleEditorProvider consoleEditorProvider_;
    private final RnwWeaveRegistry rnwWeaveRegistry_;
    private HashSet<AppCommand> activeCommands_ = new HashSet<AppCommand>();
-   private final HashSet<AppCommand> dynamicCommands_;
+   private HashSet<AppCommand> dynamicCommands_;
    private final SourceNavigationHistory sourceNavigationHistory_ = 
                                               new SourceNavigationHistory(30);
-   private final SourceVimCommands vimCommands_;
+   private SourceVimCommands vimCommands_;
 
    private boolean suspendSourceNavigationAdding_;
    private boolean suspendDocumentClose_ = false;
