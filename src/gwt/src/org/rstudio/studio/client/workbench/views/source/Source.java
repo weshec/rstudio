@@ -222,6 +222,7 @@ public class Source implements InsertSourceHandler,
    {
       void setSource(Source source);
       void generateName(boolean first);
+      void addEditor(EditingTarget target);
       String getName();
       void addTab(Widget widget,
                   FileIcon icon,
@@ -290,15 +291,31 @@ public class Source implements InsertSourceHandler,
          activeDisplay_ = getDisplayByEditor(target);
          if (activeDisplay_ != null)
             activeDisplay_.setActiveEditor(target);
+         else
+            Debug.logToConsole("ERROR: WE HAVE AN EDITOR WITHOUT A DISPLAY");
+         /*
+         else
+            activeDisplay_ = getActiveDisplay();
+            */
       }
 
       public Display getActiveDisplay()
       {
          if (activeDisplay_ != null)
             return activeDisplay_;
+
          if (activeEditor_ != null)
-            return getDisplayByEditor(activeEditor_);
-         return this.get(0);
+         {
+            activeDisplay_ = getDisplayByEditor(activeEditor_);
+            // !!! Debug code to be removed
+            if (activeDisplay_ != null)
+                  return activeDisplay_;
+            else
+               Debug.logToConsole("ERROR: WE HAVE AN EDITOR WITHOUT A DISPLAY");
+         }
+         else
+            activeDisplay_ = this.get(0);
+         return activeDisplay_;
       }
 
       public Display getDisplayByEditor(EditingTarget target)
@@ -308,6 +325,8 @@ public class Source implements InsertSourceHandler,
              if (display.hasTab(target.asWidget()))
                 return display;
          }
+         if (target != null)
+            Debug.logToConsole("GETDISPLAYBYEDITOR ERROR");
          return null;
       }
 
@@ -381,8 +400,9 @@ public class Source implements InsertSourceHandler,
       commands_ = commands;
       binder.bind(commands, this);
       view.setSource(this);
+      view.generateName(true);
       views_.add(view);
-      views_.getActiveDisplay().generateName(true);
+      views_.setActive(view);
       server_ = server;
       editingTargetSource_ = editingTargetSource;
       fileTypeRegistry_ = fileTypeRegistry;
@@ -1365,7 +1385,8 @@ public class Source implements InsertSourceHandler,
    @Handler
    public void onNewSourceDoc()
    {
-      newDoc(FileTypeRegistry.R, null);
+      views_.getActiveDisplay().onNewSourceDoc();
+      //newDoc(FileTypeRegistry.R, null);
    }
 
    @Handler
@@ -3736,6 +3757,7 @@ public class Source implements InsertSourceHandler,
          tabOrder_.add(position, position);
       }
 
+      targetView.addEditor(target);
       targetView.addTab(widget,
                         target.getIcon(),
                         target.getId(),
@@ -3915,7 +3937,6 @@ public class Source implements InsertSourceHandler,
          activeEditor_.onDeactivate();
 
       activeEditor_ = null;
-      views_.setActive((Display)null);
 
       if (event.getSelectedItem() >= 0)
       {

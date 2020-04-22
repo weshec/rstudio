@@ -108,7 +108,7 @@ public class SourcePane extends LazyPanel implements Display,
       ensureWidget();
 
       if (getTabCount() > 0 && getActiveTabIndex() >= 0)
-         editors_.get(getActiveIndex()).onInitiallyLoaded();
+         editors_.get(getActiveTabIndex()).onInitiallyLoaded();
    }
 
    @Override
@@ -186,12 +186,22 @@ public class SourcePane extends LazyPanel implements Display,
             name_ = Source.COLUMN_PREFIX + StringUtil.makeRandomId(12);
       }
    }
+
    public boolean hasTab(Widget widget)
    {
       return tabPanel_.getWidgetIndex(widget) >= 0 ? true : false;
    }
 
    // public add tab methods
+
+   @Override
+   public void addEditor(EditingTarget target)
+   {
+      if (editors_.contains(target))
+         Debug.logToConsole("Trying to add editor we already have");
+      else
+         editors_.add(target);
+   }
 
    public void addTab(Widget widget,
                       FileIcon icon,
@@ -418,6 +428,12 @@ public class SourcePane extends LazyPanel implements Display,
    public void setActiveEditor(EditingTarget target)
    {
       activeEditor_ = target;
+      if (!editors_.contains(activeEditor_))
+      {
+         addEditor(activeEditor_);
+         Debug.logToConsole("UNKNOWN ACTIVE EDITOR, ADDED TO LIST");
+      }
+
    }
 
    public void setDirty(Widget widget, boolean dirty)
@@ -694,21 +710,28 @@ public class SourcePane extends LazyPanel implements Display,
             });
       final Widget widget = createWidget(target);
 
-      int position = getActiveTabIndex() + 1;
+      Integer position = getActiveTabIndex() + 1;
 
-      // we're inserting into an existing permuted tabset -- push aside
-      // any tabs physically to the right of this tab
-      editors_.add(position, target);
-      source_.addEditor(target);
-      for (int i = 0; i < tabOrder_.size(); i++)
+      if (position == null)
       {
-         int pos = tabOrder_.get(i);
-         if (pos >= position)
-            tabOrder_.set(i, pos + 1);
+         addEditor(target);
       }
-
-      // add this tab in its "natural" position
-      tabOrder_.add(position, position);
+      else
+      {
+         // we're inserting into an existing permuted tabset -- push aside
+         // any tabs physically to the right of this tab
+         editors_.add(position, target);
+         source_.addEditor(target);
+         for (int i = 0; i < tabOrder_.size(); i++)
+         {
+            int pos = tabOrder_.get(i);
+            if (pos >= position)
+               tabOrder_.set(i, pos + 1);
+         }
+   
+         // add this tab in its "natural" position
+         tabOrder_.add(position, position);
+      }
 
       addTab(widget,
              target.getIcon(),
