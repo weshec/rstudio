@@ -18,6 +18,11 @@ import { Node as ProsemirrorNode } from 'prosemirror-model';
 import { Transform } from 'prosemirror-transform';
 import { recreateTransform } from '../vendor/prosemirror-recreate-steps/recreate';
  
+// NOTE: The very first time we tried this we got an exception when processing a step that 
+// removed an Rmd code chunk. If we want to do this we will likely need to do our 
+// own implementation (that reflects the behavior/constraints of our schema) rather than
+// using prosemirror-rectate-steps as a black box component.
+
 export function docTransform(docA: ProsemirrorNode, docB: ProsemirrorNode, reportError: (error: any) => void) : Transform {
   // first attempt to use prosemirror-recreate-steps. if that throws an exception 
   // (unexpected, but we didn't write this code so don't know what the failure 
