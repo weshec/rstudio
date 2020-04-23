@@ -16,6 +16,7 @@
 package org.rstudio.studio.client.panmirror;
 
 
+import elemental2.core.JsObject;
 import jsinterop.annotations.JsFunction;
 import jsinterop.annotations.JsType;
 
@@ -25,6 +26,7 @@ public class PanmirrorUIContext
    public GetResourceDir getResourceDir;
    public MapResourcePath mapResourcePath;
    public TranslateText translateText;
+   public LogError logError;
 
    @JsFunction
    public interface GetResourceDir
@@ -42,6 +44,12 @@ public class PanmirrorUIContext
    public interface TranslateText
    {
       String translateText(String path);
+   }
+   
+   @JsFunction
+   public interface LogError
+   {
+      void logError(JsObject error);
    }
 }
 

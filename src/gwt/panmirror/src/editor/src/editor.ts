@@ -56,6 +56,7 @@ import { unitToPixels, pixelsToUnit, roundUnit, kValidUnits } from './api/image'
 import { kPercentUnit } from './api/css';
 import { defaultEditorUIImages } from './api/ui-images';
 import { EditorFormat } from './api/format';
+import { docTransform } from './api/doc';
 
 import { getTitle, setTitle } from './nodes/yaml_metadata/yaml_metadata-title';
 
@@ -382,16 +383,14 @@ export class Editor {
       });
       this.view.updateState(this.state);
     } else {
-      // replace the top level nodes in the doc
+      // replace the current doc with the new one in as incremental a fashion as possible
+      // (preserve undo state and play well with collaborative editing)
       const tr = this.state.tr;
       tr.setMeta(kSetMarkdownTransaction, true);
-      let i = 0;
-      tr.doc.descendants((node, pos) => {
-        const mappedPos = tr.mapping.map(pos);
-        tr.replaceRangeWith(mappedPos, mappedPos + node.nodeSize, doc.child(i));
-        i++;
-        return false;
-      });
+      const transform = docTransform(tr.doc, doc, this.context.ui.context.logError);
+      for (const step of transform.steps) {
+        tr.step(step);
+      }
       this.view.dispatch(tr);
     }
 

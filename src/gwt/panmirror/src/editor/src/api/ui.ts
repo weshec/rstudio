@@ -52,6 +52,9 @@ export interface EditorUIContext {
 
   // translate a string
   translateText: (text: string) => string;
+
+  // log an error
+  logError: (error: any) => string;
 }
 
 export interface EditorDisplay {

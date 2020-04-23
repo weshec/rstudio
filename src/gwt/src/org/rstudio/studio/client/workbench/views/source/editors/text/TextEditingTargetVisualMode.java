@@ -715,6 +715,9 @@ public class TextEditingTargetVisualMode
       uiContext.translateText = text -> {
          return text;
       };
+      uiContext.logError = error -> {
+         Debug.logObject(error);
+      };
       return uiContext;
    }
    
