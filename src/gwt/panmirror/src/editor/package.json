@@ -6,6 +6,7 @@
   "dependencies": {
     "@types/clipboard": "^2.0.1",
     "@types/codemirror": "^0.0.87",
+    "@types/diff": "^4.0.2",
     "@types/orderedmap": "^1.0.0",
     "@types/prosemirror-commands": "^1.0.1",
     "@types/prosemirror-dev-tools": "^2.1.0",
@@ -23,6 +24,7 @@
     "@types/zenscroll": "^4.0.0",
     "clipboard": "^2.0.6",
     "codemirror": "^5.48.4",
+    "diff": "^4.0.2",
     "orderedmap": "^1.0.0",
     "prosemirror-changeset": "^2.1.2",
     "prosemirror-commands": "^1.1.2",
@@ -41,6 +43,7 @@
     "prosemirror-view": "^1.13.4",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
+    "rfc6902": "^3.0.4",
     "tlite": "^0.1.9",
     "typescript": "3.6.3",
     "zenscroll": "^4.0.2"
