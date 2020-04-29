@@ -26,12 +26,12 @@ import { linkTargets, LinkCapabilities, LinkType } from '../../api/link';
 export function linkCommand(markType: MarkType, onEditLink: LinkEditorFn, capabilities: LinkCapabilities) {
   return (state: EditorState, dispatch?: (tr: Transaction<any>) => void, view?: EditorView) => {
     // if the current node doesn't allow this mark return false
-    if (!state.selection.$from.node().type.allowsMarkType(markType)) {
+    if (!view || !state.selection.$from.node().type.allowsMarkType(markType)) {
       return false;
     }
 
     async function asyncEditLink() {
-      if (dispatch) {
+      if (dispatch && view) {
         // collect link targets
         const targets = await linkTargets(state.doc);
 
@@ -69,7 +69,7 @@ export function linkCommand(markType: MarkType, onEditLink: LinkEditorFn, capabi
         // show edit ui
         const result = await onEditLink({ ...link } as LinkProps, targets, capabilities);
         if (result) {
-          const tr = state.tr;
+          const tr = view.state.tr;
           tr.removeMark(range.from, range.to, markType);
           if (result.action === 'edit') {
             // create the mark
@@ -102,7 +102,7 @@ export function linkCommand(markType: MarkType, onEditLink: LinkEditorFn, capabi
               }
             }
           }
-          dispatch(tr);
+          view.dispatch(tr);
         }
         if (view) {
           view.focus();
