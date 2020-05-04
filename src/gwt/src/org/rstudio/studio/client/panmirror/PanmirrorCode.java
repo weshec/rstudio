@@ -16,11 +16,13 @@
 package org.rstudio.studio.client.panmirror;
 
 
+import org.rstudio.core.client.jsdiff.JsdiffChange;
+
 import jsinterop.annotations.JsType;
 
 @JsType
 public class PanmirrorCode
 {    
-   public String markdown;
-   public String cursorSentinel;
+   public String code;
+   public JsdiffChange[] changes;
 }

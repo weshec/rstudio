@@ -17,9 +17,9 @@ package org.rstudio.studio.client.workbench.views.source.editors.text;
 
 import java.util.ArrayList;
 
+import org.rstudio.core.client.jsdiff.JsdiffChange;
 import org.rstudio.core.client.widget.CanFocus;
 import org.rstudio.core.client.widget.IsHideableWidget;
-import org.rstudio.studio.client.panmirror.PanmirrorCode;
 
 import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.user.client.ui.LayoutPanel;
@@ -31,40 +31,27 @@ public class TextEditorContainer extends LayoutPanel implements CanFocus
 {     
    public static class EditorCode
    {
-      public EditorCode()
+      public EditorCode(String code, JsdiffChange[] changes)
       {
-         this.code = "";
-      }
-      
-      public EditorCode(PanmirrorCode editorCode)
-      {
-         this.code = editorCode.markdown;
-         this.cursorSentinel = editorCode.cursorSentinel;
-      }
-      
-      public PanmirrorCode toPanmirrorCode() 
-      {
-         PanmirrorCode editorCode =  new PanmirrorCode();
-         editorCode.markdown = this.code;
-         editorCode.cursorSentinel = this.cursorSentinel;
-         return editorCode;
+         this.code = code;
+         this.changes = changes;
       }
       
       String code;
-      String cursorSentinel;
+      JsdiffChange[] changes;
    }
    
    public static interface Editor extends IsHideableWidget
    {
       String getCode();
-      void setCode(EditorCode editorCode, boolean preserveCursorLocation, boolean activatingEditor);
+      void setCode(EditorCode editorCode, boolean activatingEditor);
    }
    
    public TextEditorContainer(Editor editor)
    {
       editor_ = editor;
       addStyleName("ace_editor_theme");
-      addWidget(editor);
+      addWidget(editor, false);
    }
    
    @Override
@@ -125,50 +112,59 @@ public class TextEditorContainer extends LayoutPanel implements CanFocus
    public void activateWidget(IsHideableWidget widget, boolean focus)
    {
       // add the widget if don't already have it
-      if (widget != null && !widgets_.contains(widget))
-         addWidget(widget);
+      if (!widgets_.contains(widget))
+         addWidget(widget, true);
+      // otherwise just set it visible
+      else
+         setWidgetVisible(widget.asWidget(), true);
       
-      // set it visible (and others invisible)
+      // set others invisible
       widgets_.forEach(w -> {
-         if (w == widget) 
-         {
-            setWidgetVisible(w.asWidget(), true);
-            forceLayout();
-            if (focus)
-               w.focus();
-         }
-         else
-         {
+         if (w != widget)
             setWidgetVisible(w.asWidget(), false);
-            forceLayout();
-         }
-        
       });
-   }
-   
-   public void hideWidget(IsHideableWidget widget)
-   {
-      setWidgetVisible(widget.asWidget(), false);
-      forceLayout();
-   }
-   
-   
-   // add a widget (not activated by default)
-   private void addWidget(IsHideableWidget widget)
-   {
-      // add editor to container
-      add(widget.asWidget());
-      
-      // have it take up the full container (but make it invisible by default)
-      setWidgetVisible(widget.asWidget(), false);
-      setWidgetLeftRight(widget.asWidget(), 0, Unit.PX, 0, Unit.PX);
-      setWidgetTopBottom(widget.asWidget(), 0, Unit.PX, 0, Unit.PX);
       
       // force layout
       forceLayout();
       
+      // focus if requested
+      if (focus)
+         widget.focus();
+   }
+   
+   // remove a widget
+   public boolean removeWidget(IsHideableWidget widget)
+   {
+      if (widget != null)
+      {
+         widgets_.remove(widget);
+         remove(widget.asWidget());
+         forceLayout();
+         return true;
+      } 
+      else
+      {
+         return false;
+      }
+   }
+   
+   
+   // add a widget (not activated by default)
+   private void addWidget(IsHideableWidget widget, boolean visible)
+   {
+      // add editor to container
+      add(widget.asWidget());
+      
+      // have it take up the full container
+      setWidgetVisible(widget.asWidget(), visible);
+      setWidgetLeftRight(widget.asWidget(), 0, Unit.PX, 0, Unit.PX);
+      setWidgetTopBottom(widget.asWidget(), 0, Unit.PX, 0, Unit.PX);
+      
       // add to list of editors we are managimg
       widgets_.add(widget);
+      
+      // layout
+      forceLayout();
    }
   
    private final Editor editor_;

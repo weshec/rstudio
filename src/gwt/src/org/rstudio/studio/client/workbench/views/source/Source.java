@@ -389,7 +389,6 @@ public class Source implements InsertSourceHandler,
                  Synctex synctex,
                  WorkbenchContext workbenchContext,
                  Provider<FileMRUList> pMruList,
-                 UserPrefs userPrefs,
                  UserState userState,
                  Satellite satellite,
                  ConsoleEditorProvider consoleEditorProvider,
@@ -416,7 +415,6 @@ public class Source implements InsertSourceHandler,
       synctex_ = synctex;
       workbenchContext_ = workbenchContext;
       pMruList_ = pMruList;
-      userPrefs_ = userPrefs;
       userState_ = userState;
       consoleEditorProvider_ = consoleEditorProvider;
       rnwWeaveRegistry_ = rnwWeaveRegistry;
@@ -720,7 +718,16 @@ public class Source implements InsertSourceHandler,
       events_.addHandler(RequestDocumentSaveEvent.TYPE, this);
       events_.addHandler(RequestDocumentCloseEvent.TYPE, this);
       
+      initialized_ = true;
+   }
+
+   public void loadFullSource()
+   {
+      AceEditor.preload();
+
       // sync UI prefs with shortcut manager
+      userPrefs_ = RStudioGinjector.INSTANCE.getUserPrefs();
+
       if (userPrefs_.editorKeybindings().getValue() == UserPrefs.EDITOR_KEYBINDINGS_VIM)
          ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_VIM);
       else if (userPrefs_.editorKeybindings().getValue() == UserPrefs.EDITOR_KEYBINDINGS_EMACS)
@@ -729,14 +736,7 @@ public class Source implements InsertSourceHandler,
          ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_SUBLIME);
       else
          ShortcutManager.INSTANCE.setEditorMode(KeyboardShortcut.MODE_DEFAULT);
-      
-      initialized_ = true;
-
-      AceEditor.preload();
-   }
-
-   public void loadFullSource()
-   {
+   
       events_.fireEvent(new DocTabsChangedEvent(null,
                                                 new String[0],
                                                 new FileIcon[0],
@@ -802,12 +802,7 @@ public class Source implements InsertSourceHandler,
       {
          @Override
          protected void onInit(Integer value)
-         {
-            // set flag indicating that tab selections are actual "user-level"
-            // document activations (in contrast to onActivated which is fired
-            // for every new tab added during startup)
-            tabActivationsAreForUser_ = true;
-            
+         { 
             if (value == null)
                return;
             if (value >= 0 && views_.getActiveDisplay().getTabCount() > value)
@@ -3941,7 +3936,7 @@ public class Source implements InsertSourceHandler,
       if (event.getSelectedItem() >= 0)
       {
          activeEditor_ = editors_.get(event.getSelectedItem());
-         activeEditor_.onActivate(tabActivationsAreForUser_);
+         activeEditor_.onActivate();
          views_.setActive(activeEditor_);
          
          // let any listeners know this tab was activated
@@ -5227,7 +5222,7 @@ public class Source implements InsertSourceHandler,
    private final Session session_;
    private final Synctex synctex_;
    private final Provider<FileMRUList> pMruList_;
-   private final UserPrefs userPrefs_;
+   private UserPrefs userPrefs_;
    private final UserState userState_;
    private final ConsoleEditorProvider consoleEditorProvider_;
    private final RnwWeaveRegistry rnwWeaveRegistry_;
@@ -5243,7 +5238,6 @@ public class Source implements InsertSourceHandler,
    private static final String KEY_ACTIVETAB = "activeTab";
    private boolean initialized_;
    private Timer debugSelectionTimer_ = null;
-   private boolean tabActivationsAreForUser_ = false;
    private boolean openingForSourceNavigation_ = false;
    
    private final Provider<SourceWindowManager> pWindowManager_;

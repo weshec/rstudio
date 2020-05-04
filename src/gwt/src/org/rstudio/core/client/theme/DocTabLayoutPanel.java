@@ -120,6 +120,11 @@ public class DocTabLayoutPanel
       events_.addHandler(DocTabDragStartedEvent.TYPE, dragManager_);
       commands_ = RStudioGinjector.INSTANCE.getCommands();
 
+   }
+
+   @Override
+   public void onLoad()
+   {
       // sink drag-related events on the tab bar element; unfortunately
       // GWT does not provide bits for the drag-related events, and 
       Scheduler.get().scheduleDeferred(new ScheduledCommand()
@@ -1298,7 +1303,7 @@ public class DocTabLayoutPanel
    {
       // IE only supports textual data; for other browsers, though, use our own
       // format so it doesn't activate text drag targets in other apps
-      if (BrowseCap.INSTANCE.isInternetExplorer()) 
+      if (BrowseCap.isInternetExplorer()) 
          return "text";
       else
          return "application/rstudio-tab";
