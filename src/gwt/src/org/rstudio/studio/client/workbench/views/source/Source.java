@@ -4898,8 +4898,7 @@ public class Source implements InsertSourceHandler,
       if (idx < tabOrder_.size())
          idx = tabOrder_.get(idx);
       
-      Display display = views_.getDisplayByDocument(editors_.get(idx).getId()).selectTab(idx);
-      display.selectTab(idx);
+      views_.getDisplayByDocument(editors_.get(idx).getId()).selectTab(idx);
    }
    
    public EditingTarget getActiveEditor()
