@@ -322,17 +322,6 @@ public class Source implements InsertSourceHandler,
             if (display.hasDoc(docId))
                return display;
          }
-         Debug.logWarning("Could not located display for docId: " + docId);
-         return null;
-      }
-
-      public Display getDisplayByName(String name)
-      {
-         for (Display display : this)
-         {
-            if (StringUtil.equals(name, display.getName()))
-               return display;
-         }
          return null;
       }
 
@@ -350,11 +339,6 @@ public class Source implements InsertSourceHandler,
          return null;
       }
 
-      public String getDisplayOfDocId()
-      {
-         return "";
-      }
-
       public int getTabCount()
       {
          int tabCount = 0;
@@ -367,11 +351,10 @@ public class Source implements InsertSourceHandler,
 
       public void closeTabs(EditingTarget editingTarget, boolean interactive, Command continuation)
       {
-         for (Display view : this)
-            view.closeTab(
-                  editingTarget.asWidget(),
-                  interactive,
-                  continuation);
+         getDisplayByDocument(editingTarget.getId()).closeTab(
+                                                      editingTarget.asWidget(),
+                                                      interactive,
+                                                      continuation);
       }
 
       public void manageChevronVisibility()
@@ -4916,6 +4899,7 @@ public class Source implements InsertSourceHandler,
    
    public void setPhysicalTabIndex(int idx)
    {
+      // !!! this needs to be updated for multiple displays
       if (idx < tabOrder_.size())
       {
          idx = tabOrder_.get(idx);
