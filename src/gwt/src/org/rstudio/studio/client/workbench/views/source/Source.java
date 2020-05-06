@@ -220,11 +220,9 @@ public class Source implements InsertSourceHandler,
                                     HasBeforeSelectionHandlers<Integer>,
                                     HasSelectionHandlers<Integer>
    {
-      // !!! make thie neater 
       void setSource(Source source);
       void generateName(boolean first);
       void addEditor(EditingTarget target);
-      String getName();
       void addTab(Widget widget,
                   FileIcon icon,
                   String docId,
@@ -232,42 +230,43 @@ public class Source implements InsertSourceHandler,
                   String tooltip,
                   Integer position,
                   boolean switchToTab);
-      void selectTab(int tabIndex);
-      void selectTab(Widget widget);
+
+      String getName();
       int getTabCount();
       int getActiveTabIndex();
       boolean hasDoc(String string);
+
+      void selectTab(int tabIndex);
+      void selectTab(Widget widget);
+      void moveTab(int index, int delta);
+      void renameTab(Widget child,
+                     FileIcon icon,
+                     String value,
+                     String tooltip);
+
+      void setDirty(Widget widget, boolean dirty);
+      void setActiveEditor(EditingTarget target);
+
       void closeTabByDocId(String docId, boolean interactive);
       void closeTabByPath(String path, boolean interactive);
       void closeTab(boolean interactive);
       void closeTab(Widget widget, boolean interactive);
       void closeTab(Widget widget, boolean interactive, Command onClosed);
-      void closeTab(int index, boolean interactive, Command onClosed);
-      void moveTab(int index, int delta);
-      void setDirty(Widget widget, boolean dirty);
-      void setActiveEditor(EditingTarget target);
-      void manageChevronVisibility();
-      void showOverflowPopup();
-      void cancelTabDrag();
-      
+
       void showUnsavedChangesDialog(
             String title,
             ArrayList<UnsavedChangesTarget> dirtyTargets,
             OperationWithInput<UnsavedChangesDialog.Result> saveOperation,
             Command onCancelled);
 
+      void manageChevronVisibility();
+      void showOverflowPopup();
+      void cancelTabDrag();
+      
       void ensureVisible();
 
-      void renameTab(Widget child,
-                     FileIcon icon,
-                     String value,
-                     String tooltip);
-
-      @Handler
       void onNewSourceDoc();
       HandlerRegistration addBeforeShowHandler(BeforeShowHandler handler);
-
-      public void onEnsureVisibleSourceWindow(EnsureVisibleSourceWindowEvent e);
    }
 
    public interface CPSEditingTargetCommand
