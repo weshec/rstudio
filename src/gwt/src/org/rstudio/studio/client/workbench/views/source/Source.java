@@ -274,7 +274,6 @@ public class Source implements InsertSourceHandler,
       void execute(EditingTarget editingTarget, Command continuation);
    }
 
-   // !!! if we can determine a consistent look up id, make this a map
    private class DisplayList extends ArrayList<Display>
    {
       public DisplayList()
@@ -3118,13 +3117,11 @@ public class Source implements InsertSourceHandler,
          });
    }
    
-   // !!! investigate if this is needed before PR
    public void forceLoad()
    {
       AceEditor.preload();
    }
 
-   // !!! investigate if this is needed before PR
    public String getCurrentDocId()
    {
       if (getActiveEditor() == null)
@@ -3900,7 +3897,6 @@ public class Source implements InsertSourceHandler,
       }
    }
 
-   // !!! this will be removed
    private void syncTabOrder()
    {
       // ensure the tab order is synced to the list of editors
@@ -4899,12 +4895,11 @@ public class Source implements InsertSourceHandler,
    
    public void setPhysicalTabIndex(int idx)
    {
-      // !!! this needs to be updated for multiple displays
       if (idx < tabOrder_.size())
-      {
          idx = tabOrder_.get(idx);
-      }
-      views_.getActiveDisplay().selectTab(idx);
+      
+      Display display = views_.getDisplayByDocument(editors_.get(idx).getId()).selectTab(idx);
+      display.selectTab(idx);
    }
    
    public EditingTarget getActiveEditor()
